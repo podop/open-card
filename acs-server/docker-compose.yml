@@ -1,0 +1,127 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: acs_user
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: acs_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U acs_user -d acs_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ds:
+    build:
+      context: ../ds-server-emulator
+      dockerfile: Dockerfile
+    ports:
+      - "9443:9443"
+    environment:
+      DS_PORT: "9443"
+      DS_LOG_LEVEL: "debug"
+      ACS_URL: "http://acs:8443"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9443/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  identity:
+    build:
+      context: ../identity-server
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8444:8444"
+    environment:
+      IDP_DATABASE_DSN: "postgres://acs_user:secret@postgres:5432/acs_db?sslmode=disable"
+      IDP_PORT: "8444"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8444/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  acs:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ds:
+        condition: service_healthy
+      identity:
+        condition: service_healthy
+    ports:
+      - "8443:8443"
+    environment:
+      ACS_DATABASE_DSN: "postgres://acs_user:secret@postgres:5432/acs_db?sslmode=disable"
+      ACS_ACS_BASE_URL: "http://localhost:8443"
+      ACS_ACS_REFERENCE_NUMBER: "3DS_LOA_ACS_DEV_020200_00000"
+      ACS_ACS_DS_URL: "http://ds:9443"
+      ACS_CRYPTO_MASTER_KEY_HEX: "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
+      ACS_CRYPTO_PAN_ENCRYPTION_KEY_HEX: "2122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40"
+      ACS_LOG_LEVEL: "debug"
+      ACS_LOG_FORMAT: "console"
+      ACS_IDENTITY_URL: "http://identity:8444"
+      # Clear TLS and SDK key paths — plaintext dev mode inside Docker
+      ACS_SERVER_TLS_CERT_FILE: ""
+      ACS_SERVER_TLS_KEY_FILE: ""
+      ACS_ACS_SDK_PRIVATE_KEY_FILE: ""
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+
+  secrets:
+    build:
+      context: ../secrets-manager
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      identity:
+        condition: service_healthy
+    ports:
+      - "8445:8445"
+    environment:
+      SM_DATABASE_DSN: "postgres://acs_user:secret@postgres:5432/acs_db?sslmode=disable"
+      SM_PORT: "8445"
+      SM_MASTER_KEY_HEX: "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
+      SM_IDENTITY_URL: "http://identity:8444"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8445/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  ui:
+    build: ./ui
+    depends_on:
+      - acs
+      - ds
+      - identity
+      - secrets
+    ports:
+      - "8080:8080"
+    environment:
+      ACS_HOST: acs
+      ACS_PORT: "8443"
+      DS_HOST: ds
+      DS_PORT: "9443"
+      IDENTITY_HOST: identity
+      IDENTITY_PORT: "8444"
+      SECRETS_HOST: secrets
+      SECRETS_PORT: "8445"
+      PORT: "8080"
+      NODE_ENV: production
+      SSR: "1"
+
+volumes:
+  pgdata:

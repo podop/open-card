@@ -1,0 +1,62 @@
+server:
+  host: "0.0.0.0"
+  port: 8443
+  read_timeout_seconds: 30
+  write_timeout_seconds: 30
+  # TLS is mandatory for production (EMV 3DS spec requires HTTPS)
+  tls_cert_file: ""  # set via env ACS_SERVER_TLS_CERT_FILE or generate certs for production
+  tls_key_file:  ""  # set via env ACS_SERVER_TLS_KEY_FILE
+
+database:
+  # DSN format: postgres://user:password@host:5432/dbname?sslmode=require
+  dsn: "postgres://acs_user:secret@localhost:5432/acs_db?sslmode=disable"
+  max_open_conns: 25
+  max_idle_conns: 5
+  conn_max_lifetime_minutes: 30
+
+acs:
+  # Publicly reachable base URL — used to build challenge redirect URLs
+  base_url: "https://acs.example.com"
+  # Assigned by EMVCo upon Letter of Approval — replace with your real value
+  reference_number: "3DS_LOA_ACS_YOURORG_020200_00000"
+  # Assigned by each Directory Server
+  operator_id: "YOUR_OPERATOR_ID"
+  supported_versions:
+    - "2.2.0"
+    - "2.3.1"
+  # RSA private key (PEM) for decrypting sdkEncData JWE in app-based (DeviceChannel=01) AReq.
+  # In production, point to an HSM-backed key; leave empty to skip decryption in dev.
+  sdk_private_key_file: ""  # set to PEM path to enable app-channel JWE decryption
+  # Directory Server URL for sending RReq messages. Leave empty to skip.
+  ds_url: ""  # set via env ACS_ACS_DS_URL
+
+crypto:
+  # AES-256 key (32 bytes = 64 hex chars) for CAVV generation
+  # ⚠ NEVER commit real key material — load from vault/HSM in production
+  master_key_hex: "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
+  # AES-256 key for PAN encryption at rest
+  pan_encryption_key_hex: "2122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f40"
+
+log:
+  level: "info"     # debug | info | warn | error
+  format: "json"    # json | console
+
+# Per-network overrides.  Keys must match entity.Network values.
+# master_key_hex: overrides the global crypto.master_key_hex for AAV/CAVV generation.
+# allow_frictionless: when false, every transaction on this network is always challenged.
+networks:
+  visa:
+    master_key_hex: ""   # leave empty to fall back to crypto.master_key_hex
+    allow_frictionless: true
+  mastercard:
+    master_key_hex: ""
+    allow_frictionless: true
+  amex:
+    master_key_hex: ""
+    allow_frictionless: false  # Amex typically requires challenge
+  discover:
+    master_key_hex: ""
+    allow_frictionless: true
+  unknown:
+    master_key_hex: ""
+    allow_frictionless: false  # conservative default for unrecognised ranges

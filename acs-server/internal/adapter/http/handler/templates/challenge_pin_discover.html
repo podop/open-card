@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Discover ProtectBuy – Card PIN Verification</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: #f0f2f5; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .card { width: 100%; max-width: 420px; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.12); }
+    .header { background: linear-gradient(135deg, #ff6000, #d54b00); padding: 20px 24px; }
+    .header h1 { margin: 0; font-size: 16px; color: #fff; font-weight: 600; }
+    .header p  { margin: 4px 0 0; font-size: 12px; color: rgba(255,255,255,0.7); }
+    .step-badge { display: inline-block; background: rgba(255,255,255,0.2); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; margin-bottom: 8px; }
+    .body { padding: 28px 24px; }
+    .merchant-row { background: #fff8f0; border-radius: 6px; padding: 12px 14px; margin-bottom: 20px; font-size: 14px; color: #555; }
+    .merchant-row strong { color: #ff6000; display: block; font-size: 15px; }
+    label { display: block; font-size: 13px; color: #555; margin-bottom: 8px; font-weight: 500; }
+    .pin-input { width: 100%; padding: 12px; font-size: 28px; letter-spacing: 12px; text-align: center; border: 2px solid #d0d0d0; border-radius: 6px; outline: none; transition: border-color .2s; }
+    .pin-input:focus { border-color: #ff6000; }
+    .btn { display: block; width: 100%; margin-top: 18px; padding: 13px; background: #ff6000; color: #fff; border: none; border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background .2s; }
+    .btn:hover { background: #e65500; }
+    .attempts { margin-top: 14px; font-size: 12px; color: #888; text-align: center; }
+    .error { background: #fff0f0; border: 1px solid #fcc; border-radius: 5px; padding: 10px 12px; font-size: 13px; color: #c00; margin-bottom: 16px; }
+    .footer { border-top: 1px solid #eee; padding: 12px 24px; text-align: center; font-size: 11px; color: #bbb; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="header">
+    <span class="step-badge">STEP 2 OF 2</span>
+    <h1>Discover ProtectBuy – Card PIN</h1>
+    <p>Additional verification required to complete the purchase</p>
+  </div>
+  <div class="body">
+    <div class="merchant-row">
+      <strong>{{.MerchantName}}</strong>
+      {{if .Amount}}<span>{{.Amount}}</span>{{end}}
+    </div>
+    {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+    <form method="POST" action="/v1/challenge/{{.ACSTransID}}/pin">
+      <input type="hidden" name="csrfToken" value="{{.CSRFToken}}">
+      <label for="pin">Enter your 4-digit card PIN</label>
+      <input class="pin-input" type="password" id="pin" name="pinCode"
+             maxlength="4" inputmode="numeric" autocomplete="off"
+             placeholder="&#8226;&#8226;&#8226;&#8226;" required>
+      <button class="btn" type="submit">Verify PIN</button>
+    </form>
+    <form method="POST" action="/v1/challenge/{{.ACSTransID}}/cancel">
+      <input type="hidden" name="csrfToken" value="{{.CSRFToken}}">
+      <button class="btn" type="submit" style="background:#888;margin-top:8px;">Cancel</button>
+    </form>
+    <p class="attempts">{{.AttemptsLeft}} attempt(s) remaining · <span id="timer"></span></p>
+  </div>
+  <div class="footer">Discover ProtectBuy · Second Factor Verification</div>
+</div>
+<script>
+(function(){var s=300,t=document.getElementById("timer"),csrf="{{.CSRFToken}}";function u(){var m=Math.floor(s/60),r=s%60;t.textContent=m+":"+(r<10?"0":"")+r;if(s<=0){var f=document.createElement("form");f.method="POST";f.action="/v1/challenge/{{.ACSTransID}}/timeout";var i=document.createElement("input");i.type="hidden";i.name="csrfToken";i.value=csrf;f.appendChild(i);document.body.appendChild(f);f.submit();return}s--;setTimeout(u,1000)}u()})();
+</script>
+</body>
+</html>

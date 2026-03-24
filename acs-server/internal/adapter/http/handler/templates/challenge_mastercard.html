@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mastercard Identity Check – Verify Your Identity</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: #f0f2f5; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .card { width: 100%; max-width: 420px; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.12); }
+    .header { background: #252525; padding: 20px 24px; display: flex; align-items: center; gap: 14px; }
+    .mc-logo { display: flex; }
+    .mc-circle { width: 28px; height: 28px; border-radius: 50%; }
+    .mc-red  { background: #EB001B; }
+    .mc-orange { background: #F79E1B; margin-left: -10px; opacity: 0.9; }
+    .header-text h1 { margin: 0; font-size: 16px; color: #fff; font-weight: 600; }
+    .header-text p  { margin: 2px 0 0; font-size: 12px; color: rgba(255,255,255,0.65); }
+    .body { padding: 28px 24px; }
+    .merchant-row { background: #f7f8fb; border-radius: 6px; padding: 12px 14px; margin-bottom: 20px; font-size: 14px; color: #555; }
+    .merchant-row strong { color: #222; display: block; font-size: 15px; }
+    .merchant-row .amount { color: #EB001B; font-weight: 600; }
+    label { display: block; font-size: 13px; color: #555; margin-bottom: 8px; font-weight: 500; }
+    .otp-input { width: 100%; padding: 12px; font-size: 22px; letter-spacing: 6px; text-align: center; border: 2px solid #d0d3de; border-radius: 6px; outline: none; transition: border-color .2s; }
+    .otp-input:focus { border-color: #EB001B; }
+    .btn { display: block; width: 100%; margin-top: 18px; padding: 13px; background: #EB001B; color: #fff; border: none; border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background .2s; }
+    .btn:hover { background: #c40016; }
+    .attempts { margin-top: 14px; font-size: 12px; color: #888; text-align: center; }
+    .error { background: #fff0f0; border: 1px solid #fcc; border-radius: 5px; padding: 10px 12px; font-size: 13px; color: #c00; margin-bottom: 16px; }
+    .footer { border-top: 1px solid #eee; padding: 12px 24px; text-align: center; font-size: 11px; color: #bbb; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="header">
+    <div class="mc-logo">
+      <div class="mc-circle mc-red"></div>
+      <div class="mc-circle mc-orange"></div>
+    </div>
+    <div class="header-text">
+      <h1>Identity Check</h1>
+      <p>Mastercard secure authentication</p>
+    </div>
+  </div>
+  <div class="body">
+    <div class="merchant-row">
+      <strong>{{.MerchantName}}</strong>
+      {{if .Amount}}<span class="amount">{{.Amount}}</span>{{end}}
+    </div>
+    {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+    <form method="POST" action="/v1/challenge/{{.ACSTransID}}/form">
+      <input type="hidden" name="csrfToken" value="{{.CSRFToken}}">
+      <label for="otp">Enter the one-time password sent to your registered device</label>
+      <input class="otp-input" type="text" id="otp" name="otpCode"
+             maxlength="6" inputmode="numeric" autocomplete="one-time-code"
+             placeholder="• • • • • •" required>
+      <button class="btn" type="submit">Verify</button>
+    </form>
+    <form method="POST" action="/v1/challenge/{{.ACSTransID}}/cancel">
+      <input type="hidden" name="csrfToken" value="{{.CSRFToken}}">
+      <button class="btn" type="submit" style="background:#888;margin-top:8px;">Cancel</button>
+    </form>
+    <p class="attempts">{{.AttemptsLeft}} attempt(s) remaining · <span id="timer"></span></p>
+  </div>
+  <div class="footer">Secured by Mastercard Identity Check · Do not share this code</div>
+</div>
+<script>
+(function(){var s=600,t=document.getElementById("timer"),csrf="{{.CSRFToken}}";function u(){var m=Math.floor(s/60),r=s%60;t.textContent=m+":"+(r<10?"0":"")+r;if(s<=0){var f=document.createElement("form");f.method="POST";f.action="/v1/challenge/{{.ACSTransID}}/timeout";var i=document.createElement("input");i.type="hidden";i.name="csrfToken";i.value=csrf;f.appendChild(i);document.body.appendChild(f);f.submit();return}s--;setTimeout(u,1000)}u()})();
+</script>
+</body>
+</html>

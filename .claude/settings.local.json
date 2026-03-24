@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs cat:*)",
+      "Bash(python3 -c \"import pypdf; print\\(''pypdf ok''\\)\")",
+      "Bash(python3 -c \"import PyPDF2; print\\(''PyPDF2 ok''\\)\")",
+      "Bash(python3 -c \"import pdfplumber; print\\(''pdfplumber ok''\\)\")",
+      "Bash(python3:*)"
+    ]
+  }
+}

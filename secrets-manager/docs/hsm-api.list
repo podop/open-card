@@ -1,0 +1,55 @@
+Platform / operations
+endpoint discovery
+endpoint health
+HSM status
+reconnect / drain / failover
+capability query
+metrics / diagnostics
+audit retrieval
+Symmetric key management
+generate working key
+import/export key under LMK/ZMK/KEK
+translate key between wraps
+generate / verify KCV
+key block operations
+key component combine / split
+LMK partition selection
+key state / attributes validation
+Asymmetric key management
+RSA key pair generation
+ECC key pair generation
+public key export
+TR-34 flows
+certificate or public-key wrapping helpers
+PIN services
+IBM 3624 / VISA PVV style verification
+PIN block translation
+PIN change
+PIN offset generation
+PIN mailer / PIN printing related flows where licensed
+online PIN verification support
+Card verification
+CVV/CVC generation
+CVV/CVC verification
+card verification data helpers
+PAN-related secure derivation helpers
+EMV services
+ARQC validation
+ARPC generation
+issuer script / MAC related operations
+EMV data preparation / personalization support
+EMV tokenization support
+mobile / wallet provisioning support
+Device / channel key management
+ATM remote key loading
+POS / mPOS / SPoC key management
+terminal key injection related flows
+regional/national key management where applicable
+Data protection / tokenization
+P2PE functions
+security tokenization
+format-preserving encryption if licensed on 10K
+Brand / scheme specific families
+Mastercard OBKM
+major card brand PIN/card verification families
+regional variants supported by the installed licenses

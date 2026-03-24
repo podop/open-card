@@ -1,0 +1,48 @@
+A. Health / topology APIs
+GET /v1/hsm/endpoints
+GET /v1/hsm/endpoints/{id}
+GET /v1/hsm/endpoints/{id}/health
+POST /v1/hsm/endpoints/{id}/reconnect
+POST /v1/hsm/endpoints/{id}/drain
+POST /v1/hsm/endpoints/{id}/resume
+GET /v1/hsm/capabilities
+GET /v1/hsm/capabilities/{model}
+
+B. Session APIs
+POST /v1/sessions
+GET /v1/sessions/{id}
+DELETE /v1/sessions/{id}
+POST /v1/sessions/{id}/ping
+
+C. Business crypto / payment APIs
+This is the important part. Group by domain instead of host command code.
+POST /v1/keys/generate
+POST /v1/keys/import
+POST /v1/keys/export
+POST /v1/keys/translate
+POST /v1/keys/validate-check-value
+POST /v1/keys/tr31/import
+POST /v1/keys/tr31/export
+POST /v1/keys/tr34/import
+POST /v1/pin/verify
+POST /v1/pin/translate
+POST /v1/pin/generate-offset
+POST /v1/pin/change
+POST /v1/emv/arqc/validate
+POST /v1/emv/arpc/generate
+POST /v1/emv/mac/generate
+POST /v1/emv/data/prepare
+POST /v1/cards/verify-cvv
+POST /v1/cards/generate-cvv
+POST /v1/cards/verify-pvv
+POST /v1/tokens/provision
+POST /v1/p2pe/encrypt
+POST /v1/p2pe/decrypt
+POST /v1/rkl/atm/load-key
+POST /v1/rkl/pos/load-key
+
+D. Admin / controlled ops
+GET /v1/admin/audit
+GET /v1/admin/metrics
+POST /v1/admin/test-command
+POST /v1/admin/raw-command
