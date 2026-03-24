@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -126,10 +126,14 @@ const icons = {
       <polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
     </svg>
   ),
-  collapse: (
+  pin: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/>
-      <line x1="3" y1="18" x2="21" y2="18"/>
+      <path d="M12 17v5"/><path d="M8 3h8"/><path d="M9 3v5l-3 4v1h12v-1l-3-4V3"/>
+    </svg>
+  ),
+  panelClose: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="15 18 9 12 15 6"/>
     </svg>
   ),
   logout: (
@@ -139,6 +143,77 @@ const icons = {
   ),
 };
 
+const navigationGroups = [
+  {
+    id: 'analytics',
+    label: 'Analytics',
+    icon: icons.dashboard,
+    items: [{ to: '/', label: 'Dashboard', end: true }],
+  },
+  {
+    id: 'data',
+    label: 'Data',
+    icon: icons.transactions,
+    items: [
+      { to: '/transactions', label: 'Transactions' },
+      { to: '/audit-logs', label: 'Audit Logs' },
+    ],
+  },
+  {
+    id: 'testing',
+    label: 'Testing',
+    icon: icons.scenarios,
+    items: [
+      { to: '/scenarios', label: 'Scenarios' },
+      { to: '/runner', label: 'Run Scenario' },
+      { to: '/run-stats', label: 'Run Statistics' },
+      { to: '/ds-emulator', label: 'DS Emulator' },
+    ],
+  },
+  {
+    id: 'keys',
+    label: 'Key Mgmt',
+    icon: icons.keys,
+    items: [
+      { to: '/keys', label: 'Keys' },
+      { to: '/rotation-policies', label: 'Rotation Policies' },
+      { to: '/security-providers', label: 'Providers' },
+    ],
+  },
+  {
+    id: 'hsm',
+    label: 'HSM',
+    icon: icons.hsm,
+    items: [
+      { to: '/hsm', label: 'Dashboard', end: true },
+      { to: '/hsm/endpoints', label: 'Endpoints' },
+      { to: '/hsm/sessions', label: 'Sessions' },
+      { to: '/hsm/console', label: 'Console' },
+      { to: '/hsm/audit', label: 'Audit Log' },
+    ],
+  },
+  {
+    id: 'admin',
+    label: 'Admin',
+    icon: icons.admin,
+    items: [
+      { to: '/admin', label: 'Settings', end: true },
+      { to: '/admin/card-ranges', label: 'Card BIN Ranges' },
+      { to: '/admin/mfa', label: 'MFA Settings' },
+      { to: '/admin/identity', label: 'Identity' },
+    ],
+  },
+];
+
+function matchesRoute(pathname, item) {
+  if (item.end) return pathname === item.to;
+  return pathname === item.to || pathname.startsWith(`${item.to}/`);
+}
+
+function findActiveGroup(pathname) {
+  return navigationGroups.find((group) => group.items.some((item) => matchesRoute(pathname, item))) ?? navigationGroups[0];
+}
+
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
   if (loading) return <div className="spinner-wrap"><div className="spinner" /></div>;
@@ -147,116 +222,136 @@ function ProtectedRoute({ children }) {
 }
 
 function AppLayout() {
-  const [collapsed, setCollapsed] = useState(false);
   const { user, logout } = useAuth();
+  const location = useLocation();
+  const activeGroup = findActiveGroup(location.pathname);
+  const [hoveredGroupId, setHoveredGroupId] = useState(null);
+  const [focusedGroupId, setFocusedGroupId] = useState(null);
+  const [pinnedGroupId, setPinnedGroupId] = useState(null);
+
+  const openGroupId = hoveredGroupId || focusedGroupId || pinnedGroupId || activeGroup.id;
+  const isPanelVisible = Boolean(hoveredGroupId || focusedGroupId || pinnedGroupId);
+  const openGroup = navigationGroups.find((group) => group.id === openGroupId) ?? activeGroup;
+
+  const handleShellBlur = (event) => {
+    if (!event.currentTarget.contains(event.relatedTarget)) {
+      setHoveredGroupId(null);
+      setFocusedGroupId(null);
+    }
+  };
 
   return (
-    <div className={`layout${collapsed ? ' collapsed' : ''}`}>
-      <aside className={`sidebar${collapsed ? ' collapsed' : ''}`}>
-        <div className="sidebar-brand">
-          <div className="sidebar-brand-icon">A</div>
-          <span className="sidebar-brand-text">ACS Server</span>
-        </div>
-        <nav className="sidebar-nav">
-          <div className="sidebar-section-title">Analytics</div>
-          <NavLink to="/" end className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-            {icons.dashboard}
-            <span className="sidebar-label">Dashboard</span>
-          </NavLink>
-          <div className="sidebar-section-title">Data</div>
-          <NavLink to="/transactions" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-            {icons.transactions}
-            <span className="sidebar-label">Transactions</span>
-          </NavLink>
-          <NavLink to="/audit-logs" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-            {icons.audit}
-            <span className="sidebar-label">Audit Logs</span>
-          </NavLink>
-          <div className="sidebar-section-title">Testing</div>
-          <NavLink to="/scenarios" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-            {icons.scenarios}
-            <span className="sidebar-label">Scenarios</span>
-          </NavLink>
-          <NavLink to="/runner" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-            {icons.runner}
-            <span className="sidebar-label">Run Scenario</span>
-          </NavLink>
-          <NavLink to="/run-stats" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-            {icons.stats}
-            <span className="sidebar-label">Run Statistics</span>
-          </NavLink>
-          <NavLink to="/ds-emulator" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-            {icons.dsOps}
-            <span className="sidebar-label">DS Emulator</span>
-          </NavLink>
-          <div className="sidebar-section-title">Key Management</div>
-          <NavLink to="/keys" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-            {icons.keys}
-            <span className="sidebar-label">Keys</span>
-          </NavLink>
-          <NavLink to="/rotation-policies" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-            {icons.rotation}
-            <span className="sidebar-label">Rotation Policies</span>
-          </NavLink>
-          <NavLink to="/security-providers" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-            {icons.providers}
-            <span className="sidebar-label">Providers</span>
-          </NavLink>
-          <div className="sidebar-section-title">HSM Gateway</div>
-          <NavLink to="/hsm" end className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-            {icons.hsm}
-            <span className="sidebar-label">Dashboard</span>
-          </NavLink>
-          <NavLink to="/hsm/endpoints" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-            {icons.hsmEndpoint}
-            <span className="sidebar-label">Endpoints</span>
-          </NavLink>
-          <NavLink to="/hsm/sessions" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-            {icons.hsm}
-            <span className="sidebar-label">Sessions</span>
-          </NavLink>
-          <NavLink to="/hsm/console" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-            {icons.hsmConsole}
-            <span className="sidebar-label">Console</span>
-          </NavLink>
-          <NavLink to="/hsm/audit" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-            {icons.hsmAudit}
-            <span className="sidebar-label">Audit Log</span>
-          </NavLink>
-          <div className="sidebar-section-title">Admin</div>
-          <NavLink to="/admin" end className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-            {icons.admin}
-            <span className="sidebar-label">Settings</span>
-          </NavLink>
-          <NavLink to="/admin/card-ranges" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-            {icons.cardRanges}
-            <span className="sidebar-label">Card BIN Ranges</span>
-          </NavLink>
-          <NavLink to="/admin/mfa" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-            {icons.mfa}
-            <span className="sidebar-label">MFA Settings</span>
-          </NavLink>
-          <NavLink to="/admin/identity" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-            {icons.identity}
-            <span className="sidebar-label">Identity</span>
-          </NavLink>
-        </nav>
-        <div className="sidebar-footer">
-          {user && (
-            <div className="sidebar-user">
-              <span className="sidebar-user-name">{user.displayName || user.username}</span>
-              <button className="sidebar-logout-btn" onClick={logout} title="Sign out">
-                {icons.logout}
-              </button>
-            </div>
-          )}
-          <div className="sidebar-toggle">
-            <button onClick={() => setCollapsed(c => !c)} title="Toggle sidebar">
-              {icons.collapse}
-            </button>
+    <div className={`layout${pinnedGroupId ? ' panel-pinned' : ''}`}>
+      <aside
+        className={`sidebar-shell${isPanelVisible ? ' panel-visible' : ''}${pinnedGroupId ? ' panel-pinned' : ''}`}
+        onMouseLeave={() => setHoveredGroupId(null)}
+        onBlur={handleShellBlur}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape' && !pinnedGroupId) {
+            setHoveredGroupId(null);
+            setFocusedGroupId(null);
+          }
+        }}
+      >
+        <div className="sidebar-rail">
+          <div className="sidebar-brand">
+            <div className="sidebar-brand-icon">A</div>
+            <span className="sidebar-brand-text">ACS</span>
+          </div>
+
+          <nav className="sidebar-primary-nav" aria-label="Primary navigation">
+            {navigationGroups.map((group) => {
+              const isActive = group.id === activeGroup.id;
+              const isOpen = group.id === openGroup.id && isPanelVisible;
+              return (
+                <button
+                  key={group.id}
+                  type="button"
+                  className={`primary-nav-button${isActive ? ' active' : ''}${isOpen ? ' open' : ''}`}
+                  onMouseEnter={() => setHoveredGroupId(group.id)}
+                  onFocus={() => setFocusedGroupId(group.id)}
+                  onClick={() => setPinnedGroupId((current) => (current === group.id ? null : group.id))}
+                  aria-controls="secondary-panel"
+                  aria-expanded={isOpen || pinnedGroupId === group.id}
+                  aria-current={isActive ? 'page' : undefined}
+                  title={group.label}
+                >
+                  <span className="primary-nav-icon">{group.icon}</span>
+                  <span className="primary-nav-label">{group.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="sidebar-footer">
+            {user && (
+              <div className="sidebar-user">
+                <span className="sidebar-user-name" title={user.displayName || user.username}>
+                  {user.displayName || user.username}
+                </span>
+                <button className="sidebar-logout-btn" onClick={logout} title="Sign out">
+                  {icons.logout}
+                </button>
+              </div>
+            )}
           </div>
         </div>
+
+        <div
+          id="secondary-panel"
+          className={`sidebar-panel${isPanelVisible ? ' visible' : ''}`}
+          onMouseEnter={() => setHoveredGroupId(openGroup.id)}
+        >
+          <div className="sidebar-panel-header">
+            <div>
+              <div className="sidebar-panel-eyebrow">Navigation</div>
+              <h2>{openGroup.label}</h2>
+            </div>
+            <div className="sidebar-panel-actions">
+              <button
+                type="button"
+                className={`sidebar-panel-toggle${pinnedGroupId === openGroup.id ? ' active' : ''}`}
+                onClick={() => setPinnedGroupId((current) => (current === openGroup.id ? null : openGroup.id))}
+                title={pinnedGroupId === openGroup.id ? 'Unpin panel' : 'Pin panel'}
+              >
+                {icons.pin}
+              </button>
+              <button
+                type="button"
+                className="sidebar-panel-toggle"
+                onClick={() => {
+                  setPinnedGroupId(null);
+                  setHoveredGroupId(null);
+                  setFocusedGroupId(null);
+                }}
+                title="Close panel"
+              >
+                {icons.panelClose}
+              </button>
+            </div>
+          </div>
+
+          <nav className="sidebar-secondary-nav" aria-label={`${openGroup.label} pages`}>
+            {openGroup.items.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) => `secondary-nav-link${isActive ? ' active' : ''}`}
+                onClick={() => {
+                  if (!pinnedGroupId) {
+                    setHoveredGroupId(null);
+                    setFocusedGroupId(null);
+                  }
+                }}
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+        </div>
       </aside>
+
       <div className="main-content">
         <div className="page-content">
           <Routes>
@@ -293,11 +388,14 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/*" element={
-            <ProtectedRoute>
-              <AppLayout />
-            </ProtectedRoute>
-          } />
+          <Route
+            path="/*"
+            element={(
+              <ProtectedRoute>
+                <AppLayout />
+              </ProtectedRoute>
+            )}
+          />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

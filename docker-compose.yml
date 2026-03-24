@@ -19,7 +19,7 @@ services:
 
   ds:
     build:
-      context: ../ds-server-emulator
+      context: ./ds-server-emulator
       dockerfile: Dockerfile
     ports:
       - "9443:9443"
@@ -35,7 +35,7 @@ services:
 
   identity:
     build:
-      context: ../identity-server
+      context: ./identity-server
       dockerfile: Dockerfile
     depends_on:
       postgres:
@@ -52,7 +52,7 @@ services:
       retries: 5
 
   acs:
-    build: .
+    build: ./acs-server
     depends_on:
       postgres:
         condition: service_healthy
@@ -77,11 +77,11 @@ services:
       ACS_SERVER_TLS_KEY_FILE: ""
       ACS_ACS_SDK_PRIVATE_KEY_FILE: ""
     volumes:
-      - ./config.yaml:/app/config.yaml:ro
+      - ./acs-server/config.yaml:/app/config.yaml:ro
 
   secrets:
     build:
-      context: ../secrets-manager
+      context: ./secrets-manager
       dockerfile: Dockerfile
     depends_on:
       postgres:
@@ -102,7 +102,9 @@ services:
       retries: 5
 
   ui:
-    build: ./ui
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
     depends_on:
       - acs
       - ds
