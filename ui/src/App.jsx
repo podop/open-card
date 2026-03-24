@@ -241,7 +241,7 @@ function AppLayout() {
   };
 
   return (
-    <div className={`layout${pinnedGroupId ? ' panel-pinned' : ''}`}>
+    <div className={`layout${isPanelVisible ? ' panel-open' : ''}${pinnedGroupId ? ' panel-pinned' : ''}`}>
       <aside
         className={`sidebar-shell${isPanelVisible ? ' panel-visible' : ''}${pinnedGroupId ? ' panel-pinned' : ''}`}
         onMouseLeave={() => setHoveredGroupId(null)}
@@ -297,59 +297,61 @@ function AppLayout() {
           </div>
         </div>
 
-        <div
-          id="secondary-panel"
-          className={`sidebar-panel${isPanelVisible ? ' visible' : ''}`}
-          onMouseEnter={() => setHoveredGroupId(openGroup.id)}
-        >
-          <div className="sidebar-panel-header">
-            <div>
-              <div className="sidebar-panel-eyebrow">Navigation</div>
-              <h2>{openGroup.label}</h2>
-            </div>
-            <div className="sidebar-panel-actions">
-              <button
-                type="button"
-                className={`sidebar-panel-toggle${pinnedGroupId === openGroup.id ? ' active' : ''}`}
-                onClick={() => setPinnedGroupId((current) => (current === openGroup.id ? null : openGroup.id))}
-                title={pinnedGroupId === openGroup.id ? 'Unpin panel' : 'Pin panel'}
-              >
-                {icons.pin}
-              </button>
-              <button
-                type="button"
-                className="sidebar-panel-toggle"
-                onClick={() => {
-                  setPinnedGroupId(null);
-                  setHoveredGroupId(null);
-                  setFocusedGroupId(null);
-                }}
-                title="Close panel"
-              >
-                {icons.panelClose}
-              </button>
-            </div>
-          </div>
-
-          <nav className="sidebar-secondary-nav" aria-label={`${openGroup.label} pages`}>
-            {openGroup.items.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.end}
-                className={({ isActive }) => `secondary-nav-link${isActive ? ' active' : ''}`}
-                onClick={() => {
-                  if (!pinnedGroupId) {
+        {isPanelVisible && (
+          <div
+            id="secondary-panel"
+            className="sidebar-panel visible"
+            onMouseEnter={() => setHoveredGroupId(openGroup.id)}
+          >
+            <div className="sidebar-panel-header">
+              <div>
+                <div className="sidebar-panel-eyebrow">Navigation</div>
+                <h2>{openGroup.label}</h2>
+              </div>
+              <div className="sidebar-panel-actions">
+                <button
+                  type="button"
+                  className={`sidebar-panel-toggle${pinnedGroupId === openGroup.id ? ' active' : ''}`}
+                  onClick={() => setPinnedGroupId((current) => (current === openGroup.id ? null : openGroup.id))}
+                  title={pinnedGroupId === openGroup.id ? 'Unpin panel' : 'Pin panel'}
+                >
+                  {icons.pin}
+                </button>
+                <button
+                  type="button"
+                  className="sidebar-panel-toggle"
+                  onClick={() => {
+                    setPinnedGroupId(null);
                     setHoveredGroupId(null);
                     setFocusedGroupId(null);
-                  }
-                }}
-              >
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
-        </div>
+                  }}
+                  title="Close panel"
+                >
+                  {icons.panelClose}
+                </button>
+              </div>
+            </div>
+
+            <nav className="sidebar-secondary-nav" aria-label={`${openGroup.label} pages`}>
+              {openGroup.items.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  className={({ isActive }) => `secondary-nav-link${isActive ? ' active' : ''}`}
+                  onClick={() => {
+                    if (!pinnedGroupId) {
+                      setHoveredGroupId(null);
+                      setFocusedGroupId(null);
+                    }
+                  }}
+                >
+                  {item.label}
+                </NavLink>
+              ))}
+            </nav>
+          </div>
+        )}
       </aside>
 
       <div className="main-content">
