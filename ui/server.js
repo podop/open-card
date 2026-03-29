@@ -14,10 +14,13 @@ const IDENTITY_HOST = process.env.IDENTITY_HOST || 'localhost';
 const IDENTITY_PORT = process.env.IDENTITY_PORT || '8444';
 const SECRETS_HOST = process.env.SECRETS_HOST || 'localhost';
 const SECRETS_PORT = process.env.SECRETS_PORT || '8445';
+const HSM_HOST = process.env.HSM_HOST || 'localhost';
+const HSM_PORT = process.env.HSM_ADMIN_PORT || '8086';
 const acsTarget = `http://${ACS_HOST}:${ACS_PORT}`;
 const dsTarget = `http://${DS_HOST}:${DS_PORT}`;
 const identityTarget = `http://${IDENTITY_HOST}:${IDENTITY_PORT}`;
 const secretsTarget = `http://${SECRETS_HOST}:${SECRETS_PORT}`;
+const hsmTarget = `http://${HSM_HOST}:${HSM_PORT}`;
 
 // Proxy: Identity Server endpoints
 app.use('/auth', createProxyMiddleware({ target: identityTarget, changeOrigin: true, pathRewrite: (path) => '/auth' + path }));
@@ -33,6 +36,9 @@ app.use('/secrets', createProxyMiddleware({ target: secretsTarget, changeOrigin:
 
 // Proxy: DS emulator API
 app.use('/ds-api', createProxyMiddleware({ target: dsTarget, changeOrigin: true, pathRewrite: (path) => '/api' + path }));
+
+// Proxy: HSM Emulator Admin API
+app.use('/hsm-admin', createProxyMiddleware({ target: hsmTarget, changeOrigin: true, pathRewrite: (path) => '/hsm-admin' + path }));
 
 // Serve static files from Vite build
 app.use(express.static(join(__dirname, 'dist')));

@@ -29,69 +29,128 @@ type HSMConfig struct {
 }
 
 type HSMProvider struct {
-	config HSMConfig
-	log    *zap.Logger
+	config       HSMConfig
+	masterKeyHex string
+	log          *zap.Logger
 }
 
-func NewHSMProvider(provider *SecurityProvider) *HSMProvider {
+func NewHSMProvider(provider *SecurityProvider, masterKeyHex string) *HSMProvider {
 	var cfg HSMConfig
 	json.Unmarshal(provider.Config, &cfg) //nolint:errcheck
 	return &HSMProvider{
-		config: cfg,
-		log:    zap.L(),
+		config:       cfg,
+		masterKeyHex: masterKeyHex,
+		log:          zap.L(),
 	}
 }
 
 func (p *HSMProvider) GenerateKeyPair(ctx context.Context, keyType string, bits int) (*GeneratedKey, error) {
-	p.log.Info("HSM: GenerateKeyPair (stub)",
+	p.log.Info("HSM: GenerateKeyPair (emulated)",
 		zap.String("model", p.config.Model),
 		zap.String("keyType", keyType),
 		zap.Int("bits", bits),
 	)
-	// Thales host command EI (Generate RSA Key Pair)
+
+	pubPEM, privPEM, fingerprint, err := generateRSAKey(bits)
+	if err != nil {
+		return nil, fmt.Errorf("HSM emulator: generate RSA key: %w", err)
+	}
+
+	privEnc, err := encryptPrivateKey(privPEM, p.masterKeyHex)
+	if err != nil {
+		return nil, fmt.Errorf("HSM emulator: encrypt private key: %w", err)
+	}
+
 	handle := fmt.Sprintf("hsm://%s:%d/slot/%d/key/%s-%d", p.config.Address, p.config.Port, p.config.SlotID, keyType, bits)
 	return &GeneratedKey{
-		HSMKeyHandle: handle,
-		Fingerprint:  fmt.Sprintf("hsm-%s-%d", keyType, bits),
-		KeySizeBits:  bits,
+		PublicKeyPEM:  pubPEM,
+		PrivateKeyEnc: privEnc,
+		HSMKeyHandle:  handle,
+		Fingerprint:   fingerprint,
+		KeySizeBits:   bits,
 	}, nil
 }
 
 func (p *HSMProvider) GenerateSymmetricKey(ctx context.Context, keyType string, bits int) (*GeneratedKey, error) {
-	p.log.Info("HSM: GenerateSymmetricKey (stub)",
+	p.log.Info("HSM: GenerateSymmetricKey (emulated)",
 		zap.String("model", p.config.Model),
 		zap.String("keyType", keyType),
 		zap.Int("bits", bits),
 	)
-	// Thales host command A0 (Generate Key)
+
+	var keyHex, fingerprint string
+	var err error
+
+	switch keyType {
+	case "3DES":
+		keyHex, fingerprint, err = generate3DESKey()
+		bits = 192
+	default:
+		keyHex, fingerprint, err = generateAESKey(bits)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("HSM emulator: generate symmetric key: %w", err)
+	}
+
+	enc, err := encryptPrivateKey(keyHex, p.masterKeyHex)
+	if err != nil {
+		return nil, fmt.Errorf("HSM emulator: encrypt symmetric key: %w", err)
+	}
+
 	handle := fmt.Sprintf("hsm://%s:%d/slot/%d/sym/%s-%d", p.config.Address, p.config.Port, p.config.SlotID, keyType, bits)
 	return &GeneratedKey{
-		HSMKeyHandle: handle,
-		Fingerprint:  fmt.Sprintf("hsm-%s-%d", keyType, bits),
-		KeySizeBits:  bits,
+		PrivateKeyEnc: enc,
+		HSMKeyHandle:  handle,
+		Fingerprint:   fingerprint,
+		KeySizeBits:   bits,
 	}, nil
 }
 
 func (p *HSMProvider) GenerateCertificate(ctx context.Context, opts CertificateOptions) (*GeneratedKey, error) {
-	p.log.Info("HSM: GenerateCertificate (stub)",
+	p.log.Info("HSM: GenerateCertificate (emulated)",
 		zap.String("model", p.config.Model),
 		zap.String("cn", opts.CommonName),
 	)
+
+	certPEM, privPEM, fingerprint, err := generateSelfSignedCert(opts)
+	if err != nil {
+		return nil, fmt.Errorf("HSM emulator: generate certificate: %w", err)
+	}
+
+	privEnc, err := encryptPrivateKey(privPEM, p.masterKeyHex)
+	if err != nil {
+		return nil, fmt.Errorf("HSM emulator: encrypt cert key: %w", err)
+	}
+
 	bits := opts.KeyBits
 	if bits == 0 {
 		bits = 2048
 	}
+
 	handle := fmt.Sprintf("hsm://%s:%d/slot/%d/cert/%s", p.config.Address, p.config.Port, p.config.SlotID, opts.CommonName)
 	return &GeneratedKey{
-		HSMKeyHandle: handle,
-		Fingerprint:  fmt.Sprintf("hsm-cert-%s", opts.CommonName),
-		KeySizeBits:  bits,
+		CertificatePEM: certPEM,
+		PrivateKeyEnc:  privEnc,
+		HSMKeyHandle:   handle,
+		Fingerprint:    fingerprint,
+		KeySizeBits:    bits,
 	}, nil
 }
 
 func (p *HSMProvider) GenerateCSR(ctx context.Context, opts CertificateOptions) (string, string, error) {
-	p.log.Info("HSM: GenerateCSR (stub)", zap.String("cn", opts.CommonName))
-	return "", "", fmt.Errorf("HSM CSR generation not yet implemented")
+	p.log.Info("HSM: GenerateCSR (emulated)", zap.String("cn", opts.CommonName))
+
+	csrPEM, privPEM, err := generateCSR(opts)
+	if err != nil {
+		return "", "", fmt.Errorf("HSM emulator: generate CSR: %w", err)
+	}
+
+	privEnc, err := encryptPrivateKey(privPEM, p.masterKeyHex)
+	if err != nil {
+		return "", "", fmt.Errorf("HSM emulator: encrypt CSR key: %w", err)
+	}
+
+	return csrPEM, privEnc, nil
 }
 
 func (p *HSMProvider) SupportsKeyType(keyType string) bool {
@@ -115,7 +174,6 @@ func (p *HSMProvider) TestConnection(ctx context.Context) error {
 	if p.config.Port == 0 {
 		return fmt.Errorf("HSM port not configured")
 	}
-	// Thales host command NC (Perform Diagnostics) — would be sent here
 	p.log.Info("HSM: would send NC (Diagnostics) command",
 		zap.String("target", fmt.Sprintf("%s:%d", p.config.Address, p.config.Port)),
 		zap.Int("headerLen", p.config.HeaderLength),

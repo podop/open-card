@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { fetchJSON } from '../api';
+import { useAuth } from '../AuthContext';
 import { NetworkBadge, NetworkIcon } from '../components/NetworkBadge';
 import { SearchInput } from '../components/SearchInput';
 import { useNetworks } from '../hooks/useNetworks';
@@ -64,6 +65,7 @@ const DEFAULT = {
 };
 
 export default function Scenarios() {
+  const { canDo } = useAuth();
   const { networks: netEntries } = useNetworks();
   const networkNames = netEntries.filter(n => n.active).map(n => n.name);
   const [scenarios, setScenarios] = useState([]);
@@ -210,9 +212,11 @@ export default function Scenarios() {
         <p>Create and manage E2E 3DS authentication test scenarios</p>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
-        <button className="btn btn-primary" onClick={startNew}>+ New Scenario</button>
-      </div>
+      {canDo('WriteTestScenario') && (
+        <div style={{ marginBottom: 16 }}>
+          <button className="btn btn-primary" onClick={startNew}>+ New Scenario</button>
+        </div>
+      )}
 
       <div className="table-card">
         <div className="table-toolbar">
@@ -232,7 +236,7 @@ export default function Scenarios() {
                   <th>Network</th>
                   <th>Channel</th>
                   <th>Card</th>
-                  <th>Actions</th>
+                  {canDo('WriteTestScenario') && <th>Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -249,12 +253,14 @@ export default function Scenarios() {
                     <td><NetworkBadge network={s.network} /></td>
                     <td><ChannelBadge ch={s.deviceChannel} /></td>
                     <td className="mono">{s.cardNumber}</td>
+                    {canDo('WriteTestScenario') && (
                     <td>
                       <div style={{ display: 'flex', gap: 4 }}>
                         <button className="btn btn-small btn-secondary" onClick={() => startEdit(s)}>Edit</button>
                         <button className="btn btn-small btn-danger" onClick={() => remove(s.id)}>Delete</button>
                       </div>
                     </td>
+                    )}
                   </tr>
                 ))}
                 {scenarios.length === 0 && (

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { fetchJSON } from '../api';
+import { useAuth } from '../AuthContext';
 import { secretsFetch } from '../secretsApi';
 
 const PROVIDER_TYPES = [
@@ -17,6 +18,7 @@ const FACTOR_TYPES = [
 ];
 
 export default function MFASettings() {
+  const { canDo } = useAuth();
   const [providers, setProviders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState(null);
@@ -71,11 +73,13 @@ export default function MFASettings() {
 
       <OTPGenerationSettings />
 
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
-        <button className="btn btn-primary" onClick={() => { setEditProvider(null); setShowForm(true); }}>
-          + Add Provider
-        </button>
-      </div>
+      {canDo('WriteMFAProviders') && (
+        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
+          <button className="btn btn-primary" onClick={() => { setEditProvider(null); setShowForm(true); }}>
+            + Add Provider
+          </button>
+        </div>
+      )}
 
       <div className="table-card">
         <div className="table-toolbar">
@@ -93,7 +97,7 @@ export default function MFASettings() {
                   <th>Factor</th>
                   <th>Status</th>
                   <th>Description</th>
-                  <th>Actions</th>
+                  {canDo('WriteMFAProviders') && <th>Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -114,21 +118,27 @@ export default function MFASettings() {
                       </span>
                     </td>
                     <td>
-                      <button
-                        className={`admin-toggle ${p.active ? 'on' : ''}`}
-                        onClick={() => handleToggle(p)}
-                        style={{ transform: 'scale(0.8)' }}
-                      >
-                        <span className="admin-toggle-knob" />
-                      </button>
+                      {canDo('WriteMFAProviders') ? (
+                        <button
+                          className={`admin-toggle ${p.active ? 'on' : ''}`}
+                          onClick={() => handleToggle(p)}
+                          style={{ transform: 'scale(0.8)' }}
+                        >
+                          <span className="admin-toggle-knob" />
+                        </button>
+                      ) : (
+                        <span className={`badge ${p.active ? 'badge-green' : 'badge-muted'}`}>{p.active ? 'Active' : 'Inactive'}</span>
+                      )}
                     </td>
                     <td style={{ fontSize: 12, color: 'var(--text-secondary)', maxWidth: 250 }}>{p.description || '-'}</td>
-                    <td>
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        <button className="btn btn-small btn-secondary" onClick={() => { setEditProvider(p); setShowForm(true); }}>Edit</button>
-                        <button className="btn btn-small btn-danger" onClick={() => handleDelete(p.id, p.displayName)}>Delete</button>
-                      </div>
-                    </td>
+                    {canDo('WriteMFAProviders') && (
+                      <td>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button className="btn btn-small btn-secondary" onClick={() => { setEditProvider(p); setShowForm(true); }}>Edit</button>
+                          <button className="btn btn-small btn-danger" onClick={() => handleDelete(p.id, p.displayName)}>Delete</button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {providers.length === 0 && (
@@ -177,6 +187,7 @@ export default function MFASettings() {
 }
 
 function OTPGenerationSettings() {
+  const { canDo } = useAuth();
   const [source, setSource] = useState('internal');
   const [endpointId, setEndpointId] = useState('');
   const [endpoints, setEndpoints] = useState([]);
@@ -249,11 +260,11 @@ function OTPGenerationSettings() {
             </div>
           )}
         </div>
-        <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
+        {canDo('WriteMFAProviders') && <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
           <button className="btn btn-primary btn-small" onClick={handleSave} disabled={saving || (source === 'hsm' && !endpointId)}>
             {saving ? 'Saving...' : 'Save OTP Settings'}
           </button>
-        </div>
+        </div>}
       </div>
     </div>
   );

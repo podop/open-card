@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../AuthContext';
 import KeySourceModal from '../components/KeySourceModal';
 
 const AUTH_BASE = '/auth';
@@ -57,6 +58,7 @@ export default function IdentitySettings() {
 // ── Settings Tab ──────────────────────────────────────────────
 
 function SettingsTab() {
+  const { canDo } = useAuth();
   const [settings, setSettings] = useState(null);
   const [form, setForm] = useState({});
   const [msg, setMsg] = useState(null);
@@ -118,9 +120,9 @@ function SettingsTab() {
             onChange={e => setForm(f => ({ ...f, refreshExpiryHours: e.target.value }))} />
         </div>
       </div>
-      <div style={{ marginTop: 16, display: 'flex', gap: 12 }}>
+      {canDo('WriteIdentitySettings') && <div style={{ marginTop: 16, display: 'flex', gap: 12 }}>
         <button className="btn btn-primary" onClick={save}>Save Settings</button>
-      </div>
+      </div>}
 
       <RSAKeySection settings={settings} onRegenerated={() => { setMsg({ type: 'success', text: 'RSA key pair updated. Users will need to re-login.' }); load(); }} onError={(e) => setMsg({ type: 'error', text: e })} />
     </div>
@@ -130,6 +132,7 @@ function SettingsTab() {
 // ── RSA Key Section ───────────────────────────────────────────
 
 function RSAKeySection({ settings, onRegenerated, onError }) {
+  const { canDo } = useAuth();
   const [showModal, setShowModal] = useState(false);
   const [rsaSource, setRsaSource] = useState(null);
 
@@ -162,11 +165,11 @@ function RSAKeySection({ settings, onRegenerated, onError }) {
         <strong> Regenerating invalidates all active sessions — users must re-login.</strong>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+      {canDo('WriteIdentitySettings') && <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <button className="btn btn-danger btn-small" onClick={regenerateInternal}>Regenerate Internally</button>
         <button className="btn btn-secondary btn-small" onClick={() => { setRsaSource('generate'); setShowModal(true); }}>Generate via Secrets Manager</button>
         <button className="btn btn-secondary btn-small" onClick={() => { setRsaSource('existing'); setShowModal(true); }}>Use Existing from Secrets Manager</button>
-      </div>
+      </div>}
 
       <pre style={{
         background: 'var(--bg-input)', padding: 12, borderRadius: 'var(--radius)',
@@ -193,6 +196,7 @@ function RSAKeySection({ settings, onRegenerated, onError }) {
 // ── Groups Tab ────────────────────────────────────────────────
 
 function GroupsTab() {
+  const { canDo } = useAuth();
   const [groups, setGroups] = useState([]);
   const [allActions, setAllActions] = useState([]);
   const [editing, setEditing] = useState(null);
@@ -245,7 +249,7 @@ function GroupsTab() {
       {msg && <div className={`admin-msg admin-msg-${msg.type}`} style={{ marginBottom: 16 }}>{msg.text}</div>}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>User Groups</h3>
-        <button className="btn btn-primary btn-small" onClick={openNew}>Add Group</button>
+        {canDo('ManageGroups') && <button className="btn btn-primary btn-small" onClick={openNew}>Add Group</button>}
       </div>
       <div className="card" style={{ padding: 0 }}>
         <table className="data-table">
@@ -263,10 +267,12 @@ function GroupsTab() {
                 <td><strong>{g.name}</strong></td>
                 <td>{g.description}</td>
                 <td><span className="badge badge-green">{(g.actions || []).length} actions</span></td>
-                <td>
-                  <button className="btn btn-secondary btn-small" onClick={() => openEdit(g)}>Edit</button>{' '}
-                  <button className="btn btn-danger btn-small" onClick={() => remove(g.id)}>Delete</button>
-                </td>
+                {canDo('ManageGroups') && (
+                  <td>
+                    <button className="btn btn-secondary btn-small" onClick={() => openEdit(g)}>Edit</button>{' '}
+                    <button className="btn btn-danger btn-small" onClick={() => remove(g.id)}>Delete</button>
+                  </td>
+                )}
               </tr>
             ))}
             {groups.length === 0 && <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 24 }}>No groups defined</td></tr>}
@@ -324,6 +330,7 @@ function GroupsTab() {
 // ── Users Tab ─────────────────────────────────────────────────
 
 function UsersTab() {
+  const { canDo } = useAuth();
   const [users, setUsers] = useState([]);
   const [groups, setGroups] = useState([]);
   const [editing, setEditing] = useState(null);
@@ -383,7 +390,7 @@ function UsersTab() {
       {msg && <div className={`admin-msg admin-msg-${msg.type}`} style={{ marginBottom: 16 }}>{msg.text}</div>}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>Users</h3>
-        <button className="btn btn-primary btn-small" onClick={openNew}>Add User</button>
+        {canDo('ManageUsers') && <button className="btn btn-primary btn-small" onClick={openNew}>Add User</button>}
       </div>
       <div className="card" style={{ padding: 0 }}>
         <table className="data-table">
@@ -407,10 +414,12 @@ function UsersTab() {
                     {u.active ? 'Active' : 'Disabled'}
                   </span>
                 </td>
-                <td>
-                  <button className="btn btn-secondary btn-small" onClick={() => openEdit(u)}>Edit</button>{' '}
-                  <button className="btn btn-danger btn-small" onClick={() => remove(u.id)}>Delete</button>
-                </td>
+                {canDo('ManageUsers') && (
+                  <td>
+                    <button className="btn btn-secondary btn-small" onClick={() => openEdit(u)}>Edit</button>{' '}
+                    <button className="btn btn-danger btn-small" onClick={() => remove(u.id)}>Delete</button>
+                  </td>
+                )}
               </tr>
             ))}
             {users.length === 0 && <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 24 }}>No users</td></tr>}

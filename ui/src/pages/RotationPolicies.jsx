@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../AuthContext';
 import { secretsFetch } from '../secretsApi';
 
 const KEY_TYPES = ['RSA-1024','RSA-2048','RSA-3072','RSA-4096','AES-128','AES-192','AES-256','3DES','X509','*'];
 
 export default function RotationPolicies() {
+  const { canDo } = useAuth();
   const [policies, setPolicies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState(null);
@@ -48,7 +50,7 @@ export default function RotationPolicies() {
       <div className="table-card">
         <div className="table-toolbar">
           <span className="card-title">Policies ({policies.length})</span>
-          <button className="btn btn-primary btn-small" onClick={() => { setEditing(null); setShowForm(true); }}>Create Policy</button>
+          {canDo('WriteRotationPolicies') && <button className="btn btn-primary btn-small" onClick={() => { setEditing(null); setShowForm(true); }}>Create Policy</button>}
         </div>
         <div className="table-wrap">
           <table>
@@ -69,8 +71,8 @@ export default function RotationPolicies() {
                   <td>{p.isTemplate ? <span className="badge badge-orange">Template</span> : '—'}</td>
                   <td>
                     <div style={{display:'flex', gap:4}}>
-                      <button className="btn btn-secondary btn-small" onClick={() => { setEditing(p); setShowForm(true); }}>Edit</button>
-                      <button className="btn btn-danger btn-small" onClick={() => handleDelete(p)}>Delete</button>
+                      {canDo('WriteRotationPolicies') && <button className="btn btn-secondary btn-small" onClick={() => { setEditing(p); setShowForm(true); }}>Edit</button>}
+                      {canDo('WriteRotationPolicies') && <button className="btn btn-danger btn-small" onClick={() => handleDelete(p)}>Delete</button>}
                     </div>
                   </td>
                 </tr>

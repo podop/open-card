@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { secretsFetch } from '../secretsApi';
 
-export default function KeySourceModal({ title, keyType, keyUsage, onSelect, onClose }) {
-  const [tab, setTab] = useState('generate');
+export default function KeySourceModal({ title, keyType, keyUsage, initialTab, onSelect, onClose }) {
+  const [tab, setTab] = useState(initialTab || 'generate');
   const [providers, setProviders] = useState([]);
   const [keys, setKeys] = useState([]);
   const [selectedProvider, setSelectedProvider] = useState('');

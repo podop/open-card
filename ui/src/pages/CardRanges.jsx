@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { fetchJSON } from '../api';
+import { useAuth } from '../AuthContext';
 import { NetworkIcon } from '../components/NetworkBadge';
 import { useNetworks } from '../hooks/useNetworks';
 
 const PROTOCOLS = ['2.1.0', '2.2.0', '2.3.1'];
 
 export default function CardRanges() {
+  const { canDo } = useAuth();
   const { networks } = useNetworks();
   const networkNames = networks.map(n => n.name);
   const [ranges, setRanges] = useState([]);
@@ -70,7 +72,7 @@ export default function CardRanges() {
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
             </select>
-            <button className="btn btn-primary btn-small" onClick={() => setShowForm(true)}>Add BIN Range</button>
+            {canDo('WriteCardRanges') && <button className="btn btn-primary btn-small" onClick={() => setShowForm(true)}>Add BIN Range</button>}
           </div>
         </div>
         <div className="table-wrap">
@@ -84,7 +86,7 @@ export default function CardRanges() {
                 <th>Max Protocol</th>
                 <th>Active</th>
                 <th>Created</th>
-                <th>Actions</th>
+                {canDo('WriteCardRanges') && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -108,11 +110,13 @@ export default function CardRanges() {
                   <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                     {r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '-'}
                   </td>
-                  <td>
-                    <button className="btn btn-danger btn-small" onClick={() => handleDelete(r)} title="Deactivate range">
-                      Delete
-                    </button>
-                  </td>
+                  {canDo('WriteCardRanges') && (
+                    <td>
+                      <button className="btn btn-danger btn-small" onClick={() => handleDelete(r)} title="Deactivate range">
+                        Delete
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
               {filtered.length === 0 && (

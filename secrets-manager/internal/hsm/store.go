@@ -70,6 +70,10 @@ func (s *Store) UpdateEndpoint(ctx context.Context, id int, ep *HSMEndpoint) err
 }
 
 func (s *Store) DeleteEndpoint(ctx context.Context, id int) error {
+	// Delete dependent rows first (no ON DELETE CASCADE in schema)
+	s.db.ExecContext(ctx, `DELETE FROM sm_hsm_metrics WHERE endpoint_id=$1`, id)   //nolint:errcheck
+	s.db.ExecContext(ctx, `DELETE FROM sm_hsm_audit_log WHERE endpoint_id=$1`, id) //nolint:errcheck
+	s.db.ExecContext(ctx, `DELETE FROM sm_hsm_sessions WHERE endpoint_id=$1`, id)  //nolint:errcheck
 	_, err := s.db.ExecContext(ctx, `DELETE FROM sm_hsm_endpoints WHERE id=$1`, id)
 	return err
 }

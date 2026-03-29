@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../AuthContext';
 import { secretsFetch } from '../secretsApi';
 
 const PROVIDER_TYPES = ['internal', 'hsm', 'ca'];
@@ -64,6 +65,7 @@ const HSM_PRESETS = {
 };
 
 export default function SecurityProviders() {
+  const { canDo } = useAuth();
   const [providers, setProviders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState(null);
@@ -126,7 +128,7 @@ export default function SecurityProviders() {
       <div className="table-card">
         <div className="table-toolbar">
           <span className="card-title">Providers ({providers.length})</span>
-          <button className="btn btn-primary btn-small" onClick={() => { setEditing(null); setShowForm(true); }}>Add Provider</button>
+          {canDo('WriteProviders') && <button className="btn btn-primary btn-small" onClick={() => { setEditing(null); setShowForm(true); }}>Add Provider</button>}
         </div>
         <div className="table-wrap">
           <table>
@@ -144,14 +146,14 @@ export default function SecurityProviders() {
                   <td>{p.keysCount}</td>
                   <td>
                     <div style={{display:'flex', gap:4}}>
-                      {p.providerType !== 'internal' && <button className="btn btn-secondary btn-small" onClick={() => handleTest(p)}>Test</button>}
-                      <button className="btn btn-secondary btn-small" onClick={() => { setEditing(p); setShowForm(true); }}>Edit</button>
+                      {canDo('WriteProviders') && p.providerType !== 'internal' && <button className="btn btn-secondary btn-small" onClick={() => handleTest(p)}>Test</button>}
+                      {canDo('WriteProviders') && <button className="btn btn-secondary btn-small" onClick={() => { setEditing(p); setShowForm(true); }}>Edit</button>}
                       {p.providerType === 'hsm' && (
                         <button className="btn btn-secondary btn-small" onClick={() => window.location.href = '#/hsm/endpoints'} title="View linked HSM endpoint">
                           Endpoint
                         </button>
                       )}
-                      {p.providerType !== 'internal' && <button className="btn btn-danger btn-small" onClick={() => handleDelete(p)}>Delete</button>}
+                      {canDo('WriteProviders') && p.providerType !== 'internal' && <button className="btn btn-danger btn-small" onClick={() => handleDelete(p)}>Delete</button>}
                     </div>
                   </td>
                 </tr>
