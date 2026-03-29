@@ -166,7 +166,11 @@ type statusCount struct {
 
 func (h *ApiHandler) dashboardStats(ctx context.Context) (*DashboardStats, error) {
 	// Cast txRepo to concrete type to access DB — use a raw interface assertion.
-	type dbGetter interface{ DB() interface{ QueryRowContext(context.Context, string, ...interface{}) interface{ Scan(...interface{}) error } } }
+	type dbGetter interface {
+		DB() interface {
+			QueryRowContext(context.Context, string, ...interface{}) interface{ Scan(...interface{}) error }
+		}
+	}
 
 	// Use the List approach for each status to avoid exposing DB directly.
 	var s DashboardStats
@@ -403,17 +407,17 @@ func (h *ApiHandler) GetAuditLogs(c *gin.Context) {
 	}
 
 	type auditItem struct {
-		ID              int64  `json:"id"`
-		ACSTransID      string `json:"acsTransID"`
-		DSTransID       string `json:"dsTransID"`
-		EventType       string `json:"eventType"`
-		TransStatus     string `json:"transStatus"`
-		CardBIN         string `json:"cardBIN"`
-		MerchantCountry string `json:"merchantCountry"`
-		DeviceChannel   string `json:"deviceChannel"`
-		SpecVersion     string `json:"specVersion"`
+		ID              int64       `json:"id"`
+		ACSTransID      string      `json:"acsTransID"`
+		DSTransID       string      `json:"dsTransID"`
+		EventType       string      `json:"eventType"`
+		TransStatus     string      `json:"transStatus"`
+		CardBIN         string      `json:"cardBIN"`
+		MerchantCountry string      `json:"merchantCountry"`
+		DeviceChannel   string      `json:"deviceChannel"`
+		SpecVersion     string      `json:"specVersion"`
 		Detail          interface{} `json:"detail"`
-		CreatedAt       string `json:"createdAt"`
+		CreatedAt       string      `json:"createdAt"`
 	}
 	items := make([]auditItem, 0, len(rows))
 	for _, r := range rows {
@@ -574,10 +578,11 @@ func maskDSN(dsn string) string {
 // GetConfig handles GET /api/config — returns all admin-relevant settings.
 func (h *ApiHandler) GetConfig(c *gin.Context) {
 	type networkPolicy struct {
-		Network           string `json:"network"`
-		AllowFrictionless bool   `json:"allowFrictionless"`
-		HasCustomKey      bool   `json:"hasCustomKey"`
-		HasCertificate    bool   `json:"hasCertificate"`
+		Network           string   `json:"network"`
+		AllowFrictionless bool     `json:"allowFrictionless"`
+		HasCustomKey      bool     `json:"hasCustomKey"`
+		MasterKeyMasked   string   `json:"masterKeyMasked,omitempty"`
+		HasCertificate    bool     `json:"hasCertificate"`
 		CertTypes         []string `json:"certTypes"`
 	}
 
@@ -592,10 +597,15 @@ func (h *ApiHandler) GetConfig(c *gin.Context) {
 			certTypes = append(certTypes, ct)
 		}
 		h.certsMu.RUnlock()
+		var maskedKey string
+		if nc.MasterKeyHex != "" {
+			maskedKey = maskKey(nc.MasterKeyHex)
+		}
 		policies = append(policies, networkPolicy{
 			Network:           name,
 			AllowFrictionless: p.AllowFrictionless,
 			HasCustomKey:      nc.MasterKeyHex != "",
+			MasterKeyMasked:   maskedKey,
 			HasCertificate:    len(certTypes) > 0,
 			CertTypes:         certTypes,
 		})
@@ -620,7 +630,7 @@ func (h *ApiHandler) GetConfig(c *gin.Context) {
 			"dsURL":             h.cfg.ACS.DSURL,
 		},
 		"crypto": gin.H{
-			"masterKeyHex":       maskKey(h.cfg.Crypto.MasterKeyHex),
+			"masterKeyHex":        maskKey(h.cfg.Crypto.MasterKeyHex),
 			"panEncryptionKeyHex": maskKey(h.cfg.Crypto.PANEncryptionKeyHex),
 		},
 		"log": gin.H{
@@ -1333,4 +1343,3 @@ func (h *ApiHandler) GetOReqHistory(c *gin.Context) {
 		"per_page": perPage,
 	})
 }
-

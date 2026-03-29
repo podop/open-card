@@ -1,10 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../AuthContext';
 import { secretsFetch } from '../secretsApi';
 
 const STATUS_BADGE = { online:'badge-green', offline:'badge-red', degraded:'badge-yellow', draining:'badge-orange' };
 const CAPABILITIES = ['keys','pin','emv','cards','p2pe','rkl','tokens','admin'];
 
 const HSM_PRESETS = {
+  'payshield-10k-emulator': {
+    label: 'Thales payShield 10K Emulator',
+    config: { model:'payshield-10k', protocol:'TCP', port:1500, headerLength:2, firmwareVersion:'0650-E000',
+      hostCommandTimeout:30, connectionTimeout:10, maxConnections:64, lmkIdentifier:0 },
+    defaultCaps: ['keys','pin','emv','cards','p2pe','rkl','tokens','admin'],
+    desc: 'Built-in PayShield 10K emulator. 2-byte header, test LMK, auto-authorized.',
+  },
   'payshield-10k': {
     label: 'Thales payShield 10000',
     config: { model:'payshield-10k', protocol:'TCP', port:1500, headerLength:4, firmwareVersion:'1.4A0000',
@@ -29,6 +37,7 @@ const HSM_PRESETS = {
 };
 
 export default function HSMEndpoints() {
+  const { canDo } = useAuth();
   const [endpoints, setEndpoints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState(null);
@@ -97,7 +106,7 @@ export default function HSMEndpoints() {
       <div className="table-card">
         <div className="table-toolbar">
           <span className="card-title">Endpoints ({endpoints.length})</span>
-          <button className="btn btn-primary btn-small" onClick={() => { setEditing(null); setShowForm(true); }}>Add Endpoint</button>
+          {canDo('WriteHSMEndpoints') && <button className="btn btn-primary btn-small" onClick={() => { setEditing(null); setShowForm(true); }}>Add Endpoint</button>}
         </div>
         <div className="table-wrap">
           <table>
@@ -126,12 +135,12 @@ export default function HSMEndpoints() {
                   <td>
                     <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
                       <button className="btn btn-secondary btn-small" onClick={() => handleHealthCheck(ep)}>Health</button>
-                      {ep.status === 'offline' && <button className="btn btn-secondary btn-small" onClick={() => handleAction(ep.id,'reconnect')}>Reconnect</button>}
-                      {(ep.status==='online'||ep.status==='degraded') && <button className="btn btn-secondary btn-small" onClick={() => handleAction(ep.id,'drain')}>Drain</button>}
-                      {ep.status === 'draining' && <button className="btn btn-secondary btn-small" onClick={() => handleAction(ep.id,'resume')}>Resume</button>}
-                      <button className="btn btn-secondary btn-small" onClick={() => { setEditing(ep); setShowForm(true); }}>Edit</button>
+                      {canDo('WriteHSMEndpoints') && ep.status === 'offline' && <button className="btn btn-secondary btn-small" onClick={() => handleAction(ep.id,'reconnect')}>Reconnect</button>}
+                      {canDo('WriteHSMEndpoints') && (ep.status==='online'||ep.status==='degraded') && <button className="btn btn-secondary btn-small" onClick={() => handleAction(ep.id,'drain')}>Drain</button>}
+                      {canDo('WriteHSMEndpoints') && ep.status === 'draining' && <button className="btn btn-secondary btn-small" onClick={() => handleAction(ep.id,'resume')}>Resume</button>}
+                      {canDo('WriteHSMEndpoints') && <button className="btn btn-secondary btn-small" onClick={() => { setEditing(ep); setShowForm(true); }}>Edit</button>}
                       <button className="btn btn-secondary btn-small" onClick={() => window.location.href = '#/secrets/providers'} title="View linked security provider">Provider</button>
-                      <button className="btn btn-danger btn-small" onClick={() => handleDelete(ep)}>Delete</button>
+                      {canDo('WriteHSMEndpoints') && <button className="btn btn-danger btn-small" onClick={() => handleDelete(ep)}>Delete</button>}
                     </div>
                   </td>
                 </tr>

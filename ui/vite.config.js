@@ -8,6 +8,7 @@ export default defineConfig({
     proxy: {
       '/api': 'http://localhost:8443',
       '/v1': 'http://localhost:8443',
+      '/hsm-admin': 'http://localhost:8086',
     },
   },
   build: {

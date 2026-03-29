@@ -101,6 +101,21 @@ services:
       timeout: 3s
       retries: 5
 
+  hsm:
+    build:
+      context: ./hsm-emulator
+      dockerfile: Dockerfile
+    ports:
+      - "1500:1500"
+      - "8086:8086"
+    volumes:
+      - hsmdata:/data
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8086/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
   ui:
     build:
       context: ./ui
@@ -110,6 +125,7 @@ services:
       - ds
       - identity
       - secrets
+      - hsm
     ports:
       - "8080:8080"
     environment:
@@ -121,9 +137,12 @@ services:
       IDENTITY_PORT: "8444"
       SECRETS_HOST: secrets
       SECRETS_PORT: "8445"
+      HSM_HOST: hsm
+      HSM_ADMIN_PORT: "8086"
       PORT: "8080"
       NODE_ENV: production
       SSR: "1"
 
 volumes:
   pgdata:
+  hsmdata:

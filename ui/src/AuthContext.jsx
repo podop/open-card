@@ -111,6 +111,12 @@ export function AuthProvider({ children }) {
     }
   }, [token, refresh]);
 
+  const canDo = useCallback((action) => {
+    if (!user?.actions) return false;
+    if (Array.isArray(action)) return action.some(a => user.actions.includes(a));
+    return user.actions.includes(action);
+  }, [user]);
+
   const value = {
     user,
     token,
@@ -118,6 +124,7 @@ export function AuthProvider({ children }) {
     login,
     logout,
     refresh,
+    canDo,
     isAuthenticated: !!token && !!user,
   };
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { fetchJSON } from '../api';
+import { useAuth } from '../AuthContext';
 import { FlowBadge } from './Scenarios';
 import { NetworkBadge } from '../components/NetworkBadge';
 import { SearchInput } from '../components/SearchInput';
@@ -8,6 +9,7 @@ import { Pagination } from './Transactions';
 const PER_PAGE = 20;
 
 export default function ScenarioRunner() {
+  const { canDo } = useAuth();
   const [scenarios, setScenarios] = useState([]);
   const [runs, setRuns] = useState([]);
   const [total, setTotal] = useState(0);
@@ -178,9 +180,11 @@ export default function ScenarioRunner() {
                     </div>
                     {s.description && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{s.description}</div>}
                   </div>
-                  <button className="btn btn-primary" disabled={running === s.id} onClick={() => runScenario(s.id)}>
-                    {running === s.id ? 'Running…' : mode === 'interactive' ? 'Start' : 'Run'}
-                  </button>
+                  {canDo('RunTestScenario') && (
+                    <button className="btn btn-primary" disabled={running === s.id} onClick={() => runScenario(s.id)}>
+                      {running === s.id ? 'Running…' : mode === 'interactive' ? 'Start' : 'Run'}
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

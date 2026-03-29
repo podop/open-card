@@ -22,6 +22,8 @@ import HSMEndpoints from './pages/HSMEndpoints';
 import HSMSessions from './pages/HSMSessions';
 import HSMConsole from './pages/HSMConsole';
 import HSMAudit from './pages/HSMAudit';
+import HSMEmulator from './pages/HSMEmulator';
+import CustomCase from './pages/CustomCase';
 
 const icons = {
   dashboard: (
@@ -126,6 +128,11 @@ const icons = {
       <polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
     </svg>
   ),
+  customCase: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+    </svg>
+  ),
   pin: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 17v5"/><path d="M8 3h8"/><path d="M9 3v5l-3 4v1h12v-1l-3-4V3"/>
@@ -148,15 +155,15 @@ const navigationGroups = [
     id: 'analytics',
     label: 'Analytics',
     icon: icons.dashboard,
-    items: [{ to: '/', label: 'Dashboard', end: true }],
+    items: [{ to: '/', label: 'Dashboard', end: true, icon: icons.dashboard, action: 'ReadDashboard' }],
   },
   {
     id: 'data',
     label: 'Data',
     icon: icons.transactions,
     items: [
-      { to: '/transactions', label: 'Transactions' },
-      { to: '/audit-logs', label: 'Audit Logs' },
+      { to: '/transactions', label: 'Transactions', icon: icons.transactions, action: 'ReadTransactions' },
+      { to: '/audit-logs', label: 'Audit Logs', icon: icons.audit, action: 'ReadAuditLogs' },
     ],
   },
   {
@@ -164,10 +171,11 @@ const navigationGroups = [
     label: 'Testing',
     icon: icons.scenarios,
     items: [
-      { to: '/scenarios', label: 'Scenarios' },
-      { to: '/runner', label: 'Run Scenario' },
-      { to: '/run-stats', label: 'Run Statistics' },
-      { to: '/ds-emulator', label: 'DS Emulator' },
+      { to: '/scenarios', label: 'Scenarios', icon: icons.scenarios, action: 'ReadTestScenario' },
+      { to: '/runner', label: 'Run Scenario', icon: icons.runner, action: 'RunTestScenario' },
+      { to: '/custom-case', label: 'Custom Case', icon: icons.customCase, action: 'RunTestScenario' },
+      { to: '/run-stats', label: 'Run Statistics', icon: icons.stats, action: 'ReadTestScenario' },
+      { to: '/ds-emulator', label: 'DS Emulator', icon: icons.dsOps, action: 'ReadOReqHistory' },
     ],
   },
   {
@@ -175,9 +183,9 @@ const navigationGroups = [
     label: 'Key Mgmt',
     icon: icons.keys,
     items: [
-      { to: '/keys', label: 'Keys' },
-      { to: '/rotation-policies', label: 'Rotation Policies' },
-      { to: '/security-providers', label: 'Providers' },
+      { to: '/keys', label: 'Keys', icon: icons.keys, action: 'ReadKeys' },
+      { to: '/rotation-policies', label: 'Rotation Policies', icon: icons.rotation, action: 'ReadRotationPolicies' },
+      { to: '/security-providers', label: 'Providers', icon: icons.providers, action: 'ReadProviders' },
     ],
   },
   {
@@ -185,11 +193,12 @@ const navigationGroups = [
     label: 'HSM',
     icon: icons.hsm,
     items: [
-      { to: '/hsm', label: 'Dashboard', end: true },
-      { to: '/hsm/endpoints', label: 'Endpoints' },
-      { to: '/hsm/sessions', label: 'Sessions' },
-      { to: '/hsm/console', label: 'Console' },
-      { to: '/hsm/audit', label: 'Audit Log' },
+      { to: '/hsm', label: 'Dashboard', end: true, icon: icons.dashboard, action: 'ReadHSMMetrics' },
+      { to: '/hsm/endpoints', label: 'Endpoints', icon: icons.hsmEndpoint, action: 'ReadHSMEndpoints' },
+      { to: '/hsm/sessions', label: 'Sessions', icon: icons.hsm, action: 'ReadHSMEndpoints' },
+      { to: '/hsm/console', label: 'Console', icon: icons.hsmConsole, action: 'UseHSM' },
+      { to: '/hsm/audit', label: 'Audit Log', icon: icons.hsmAudit, action: 'ReadHSMAudit' },
+      { to: '/hsm/emulator', label: 'HSM Emulator', icon: icons.hsmConsole, action: 'AdminHSM' },
     ],
   },
   {
@@ -197,10 +206,10 @@ const navigationGroups = [
     label: 'Admin',
     icon: icons.admin,
     items: [
-      { to: '/admin', label: 'Settings', end: true },
-      { to: '/admin/card-ranges', label: 'Card BIN Ranges' },
-      { to: '/admin/mfa', label: 'MFA Settings' },
-      { to: '/admin/identity', label: 'Identity' },
+      { to: '/admin', label: 'Settings', end: true, icon: icons.admin, action: 'ReadConfig' },
+      { to: '/admin/card-ranges', label: 'Card BIN Ranges', icon: icons.cardRanges, action: 'ReadCardRanges' },
+      { to: '/admin/mfa', label: 'MFA Settings', icon: icons.mfa, action: 'ReadMFAProviders' },
+      { to: '/admin/identity', label: 'Identity', icon: icons.identity, action: ['ManageUsers', 'ManageGroups', 'ReadIdentitySettings'] },
     ],
   },
 ];
@@ -210,8 +219,19 @@ function matchesRoute(pathname, item) {
   return pathname === item.to || pathname.startsWith(`${item.to}/`);
 }
 
-function findActiveGroup(pathname) {
-  return navigationGroups.find((group) => group.items.some((item) => matchesRoute(pathname, item))) ?? navigationGroups[0];
+function itemAllowed(item, canDo) {
+  if (!item.action) return true;
+  return canDo(item.action);
+}
+
+function filterGroups(canDo) {
+  return navigationGroups
+    .map((group) => ({ ...group, items: group.items.filter((item) => itemAllowed(item, canDo)) }))
+    .filter((group) => group.items.length > 0);
+}
+
+function findActiveGroup(groups, pathname) {
+  return groups.find((group) => group.items.some((item) => matchesRoute(pathname, item))) ?? groups[0];
 }
 
 function ProtectedRoute({ children }) {
@@ -222,16 +242,17 @@ function ProtectedRoute({ children }) {
 }
 
 function AppLayout() {
-  const { user, logout } = useAuth();
+  const { user, logout, canDo } = useAuth();
   const location = useLocation();
-  const activeGroup = findActiveGroup(location.pathname);
+  const visibleGroups = filterGroups(canDo);
+  const activeGroup = findActiveGroup(visibleGroups, location.pathname);
   const [hoveredGroupId, setHoveredGroupId] = useState(null);
   const [focusedGroupId, setFocusedGroupId] = useState(null);
   const [pinnedGroupId, setPinnedGroupId] = useState(null);
 
   const openGroupId = hoveredGroupId || focusedGroupId || pinnedGroupId || activeGroup.id;
   const isPanelVisible = Boolean(hoveredGroupId || focusedGroupId || pinnedGroupId);
-  const openGroup = navigationGroups.find((group) => group.id === openGroupId) ?? activeGroup;
+  const openGroup = visibleGroups.find((group) => group.id === openGroupId) ?? activeGroup;
 
   const handleShellBlur = (event) => {
     if (!event.currentTarget.contains(event.relatedTarget)) {
@@ -260,7 +281,7 @@ function AppLayout() {
           </div>
 
           <nav className="sidebar-primary-nav" aria-label="Primary navigation">
-            {navigationGroups.map((group) => {
+            {visibleGroups.map((group) => {
               const isActive = group.id === activeGroup.id;
               const isOpen = group.id === openGroup.id && isPanelVisible;
               return (
@@ -304,7 +325,8 @@ function AppLayout() {
             onMouseEnter={() => setHoveredGroupId(openGroup.id)}
           >
             <div className="sidebar-panel-header">
-              <div>
+              <div className="sidebar-panel-title-wrap">
+                <span className="sidebar-panel-group-icon">{openGroup.icon}</span>
                 <div className="sidebar-panel-eyebrow">Navigation</div>
                 <h2>{openGroup.label}</h2>
               </div>
@@ -346,7 +368,8 @@ function AppLayout() {
                     }
                   }}
                 >
-                  {item.label}
+                  <span className="secondary-nav-icon">{item.icon}</span>
+                  <span>{item.label}</span>
                 </NavLink>
               ))}
             </nav>
@@ -363,6 +386,7 @@ function AppLayout() {
             <Route path="/audit-logs" element={<AuditLogs />} />
             <Route path="/scenarios" element={<Scenarios />} />
             <Route path="/runner" element={<ScenarioRunner />} />
+            <Route path="/custom-case" element={<CustomCase />} />
             <Route path="/run-stats" element={<RunStats />} />
             <Route path="/keys" element={<KeyManagement />} />
             <Route path="/rotation-policies" element={<RotationPolicies />} />
@@ -372,6 +396,7 @@ function AppLayout() {
             <Route path="/hsm/sessions" element={<HSMSessions />} />
             <Route path="/hsm/console" element={<HSMConsole />} />
             <Route path="/hsm/audit" element={<HSMAudit />} />
+            <Route path="/hsm/emulator" element={<HSMEmulator />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/admin/card-ranges" element={<CardRanges />} />
             <Route path="/admin/mfa" element={<MFASettings />} />

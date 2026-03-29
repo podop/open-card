@@ -109,47 +109,59 @@ func (n NullTime) Value() (driver.Value, error) {
 // ── Database Models ─────────────────────────────────────────────
 
 type HSMEndpoint struct {
-	ID                 int            `db:"id" json:"id"`
-	Name               string         `db:"name" json:"name"`
-	Model              string         `db:"model" json:"model"`
-	Address            string         `db:"address" json:"address"`
-	Port               int            `db:"port" json:"port"`
-	Protocol           string         `db:"protocol" json:"protocol"`
-	HeaderLength       int            `db:"header_length" json:"headerLength"`
-	FirmwareVersion    string         `db:"firmware_version" json:"firmwareVersion"`
-	HostCommandTimeout int            `db:"host_command_timeout" json:"hostCommandTimeout"`
-	ConnectionTimeout  int            `db:"connection_timeout" json:"connectionTimeout"`
-	MaxConnections     int            `db:"max_connections" json:"maxConnections"`
-	LMKIdentifier      int            `db:"lmk_identifier" json:"lmkIdentifier"`
+	ID                 int             `db:"id" json:"id"`
+	Name               string          `db:"name" json:"name"`
+	Model              string          `db:"model" json:"model"`
+	Address            string          `db:"address" json:"address"`
+	Port               int             `db:"port" json:"port"`
+	Protocol           string          `db:"protocol" json:"protocol"`
+	HeaderLength       int             `db:"header_length" json:"headerLength"`
+	FirmwareVersion    string          `db:"firmware_version" json:"firmwareVersion"`
+	HostCommandTimeout int             `db:"host_command_timeout" json:"hostCommandTimeout"`
+	ConnectionTimeout  int             `db:"connection_timeout" json:"connectionTimeout"`
+	MaxConnections     int             `db:"max_connections" json:"maxConnections"`
+	LMKIdentifier      int             `db:"lmk_identifier" json:"lmkIdentifier"`
 	Config             json.RawMessage `db:"config" json:"config"`
-	Weight             int            `db:"weight" json:"weight"`
-	Priority           int            `db:"priority" json:"priority"`
-	Status             string         `db:"status" json:"status"`
-	Capabilities       StringArray    `db:"capabilities" json:"capabilities"`
-	Enabled            bool           `db:"enabled" json:"enabled"`
-	LastHealthCheck    NullTime   `db:"last_health_check" json:"lastHealthCheck,omitempty"`
-	LastHealthOK       bool       `db:"last_health_ok" json:"lastHealthOk"`
-	ErrorMessage       NullString `db:"error_message" json:"errorMessage,omitempty"`
-	CreatedBy          int            `db:"created_by" json:"createdBy"`
-	CreatedAt          time.Time      `db:"created_at" json:"createdAt"`
-	UpdatedAt          time.Time      `db:"updated_at" json:"updatedAt"`
+	Weight             int             `db:"weight" json:"weight"`
+	Priority           int             `db:"priority" json:"priority"`
+	Status             string          `db:"status" json:"status"`
+	Capabilities       StringArray     `db:"capabilities" json:"capabilities"`
+	Enabled            bool            `db:"enabled" json:"enabled"`
+	GroupID            NullInt32       `db:"group_id" json:"groupId,omitempty"`
+	LastHealthCheck    NullTime        `db:"last_health_check" json:"lastHealthCheck,omitempty"`
+	LastHealthOK       bool            `db:"last_health_ok" json:"lastHealthOk"`
+	ErrorMessage       NullString      `db:"error_message" json:"errorMessage,omitempty"`
+	CreatedBy          int             `db:"created_by" json:"createdBy"`
+	CreatedAt          time.Time       `db:"created_at" json:"createdAt"`
+	UpdatedAt          time.Time       `db:"updated_at" json:"updatedAt"`
+}
+
+type HSMEndpointGroup struct {
+	ID          int       `db:"id" json:"id"`
+	Name        string    `db:"name" json:"name"`
+	Description string    `db:"description" json:"description"`
+	Strategy    string    `db:"strategy" json:"strategy"`
+	Enabled     bool      `db:"enabled" json:"enabled"`
+	CreatedBy   int       `db:"created_by" json:"createdBy"`
+	CreatedAt   time.Time `db:"created_at" json:"createdAt"`
+	UpdatedAt   time.Time `db:"updated_at" json:"updatedAt"`
 }
 
 type HSMSession struct {
-	ID         string         `db:"id" json:"id"`
-	EndpointID NullInt32       `db:"endpoint_id" json:"endpointId,omitempty"`
-	ClientLabel string        `db:"client_label" json:"clientLabel"`
-	Strategy   string         `db:"strategy" json:"strategy"`
-	Status     string         `db:"status" json:"status"`
-	LastPing   time.Time      `db:"last_ping" json:"lastPing"`
-	TTLSeconds int            `db:"ttl_seconds" json:"ttlSeconds"`
-	Metadata   json.RawMessage `db:"metadata" json:"metadata"`
-	CreatedAt  time.Time      `db:"created_at" json:"createdAt"`
-	ClosedAt   NullTime       `db:"closed_at" json:"closedAt,omitempty"`
+	ID          string          `db:"id" json:"id"`
+	EndpointID  NullInt32       `db:"endpoint_id" json:"endpointId,omitempty"`
+	ClientLabel string          `db:"client_label" json:"clientLabel"`
+	Strategy    string          `db:"strategy" json:"strategy"`
+	Status      string          `db:"status" json:"status"`
+	LastPing    time.Time       `db:"last_ping" json:"lastPing"`
+	TTLSeconds  int             `db:"ttl_seconds" json:"ttlSeconds"`
+	Metadata    json.RawMessage `db:"metadata" json:"metadata"`
+	CreatedAt   time.Time       `db:"created_at" json:"createdAt"`
+	ClosedAt    NullTime        `db:"closed_at" json:"closedAt,omitempty"`
 }
 
 type HSMAuditEntry struct {
-	ID           int64          `db:"id" json:"id"`
+	ID           int64      `db:"id" json:"id"`
 	SessionID    NullString `db:"session_id" json:"sessionId,omitempty"`
 	EndpointID   NullInt32  `db:"endpoint_id" json:"endpointId,omitempty"`
 	CommandCode  string     `db:"command_code" json:"commandCode"`
@@ -161,7 +173,7 @@ type HSMAuditEntry struct {
 	ErrorMessage NullString `db:"error_message" json:"errorMessage,omitempty"`
 	UserID       int        `db:"user_id" json:"userId"`
 	IPAddress    NullString `db:"ip_address" json:"ipAddress,omitempty"`
-	CreatedAt    time.Time      `db:"created_at" json:"createdAt"`
+	CreatedAt    time.Time  `db:"created_at" json:"createdAt"`
 }
 
 type HSMMetrics struct {
@@ -195,45 +207,45 @@ type PoolStats struct {
 // ── API Request/Response Types ──────────────────────────────────
 
 type KeyGenerateRequest struct {
-	KeyType   string `json:"keyType"`   // ZMK, ZPK, TMK, TAK, ZEK, etc.
-	Scheme    string `json:"scheme"`    // Z (variant), U (TR-31), T (TR-31 AES)
-	KeyUsage  string `json:"keyUsage"`  // optional TR-31 key usage
-	Algorithm string `json:"algorithm"` // D (DES), T (3DES), A (AES)
-	ModeOfUse string `json:"modeOfUse"` // TR-31 mode of use
-	LMKKeyType int   `json:"lmkKeyType"` // 0-based LMK key type code
+	KeyType    string `json:"keyType"`    // ZMK, ZPK, TMK, TAK, ZEK, etc.
+	Scheme     string `json:"scheme"`     // Z (variant), U (TR-31), T (TR-31 AES)
+	KeyUsage   string `json:"keyUsage"`   // optional TR-31 key usage
+	Algorithm  string `json:"algorithm"`  // D (DES), T (3DES), A (AES)
+	ModeOfUse  string `json:"modeOfUse"`  // TR-31 mode of use
+	LMKKeyType int    `json:"lmkKeyType"` // 0-based LMK key type code
 }
 
 type KeyGenerateResponse struct {
-	Key           string `json:"key"`
-	CheckValue    string `json:"checkValue"`
-	KeyScheme     string `json:"keyScheme"`
-	ErrorCode     string `json:"errorCode"`
+	Key        string `json:"key"`
+	CheckValue string `json:"checkValue"`
+	KeyScheme  string `json:"keyScheme"`
+	ErrorCode  string `json:"errorCode"`
 }
 
 type RSAGenerateRequest struct {
-	KeyLength  int    `json:"keyLength"`  // 320-4096 bits
-	KeyType    int    `json:"keyType"`    // 0=sign, 1=key mgmt, 2=both
+	KeyLength      int    `json:"keyLength"`      // 320-4096 bits
+	KeyType        int    `json:"keyType"`        // 0=sign, 1=key mgmt, 2=both
 	PublicExponent string `json:"publicExponent"` // 3 or 65537
 }
 
 type RSAGenerateResponse struct {
-	PublicKey    string `json:"publicKey"`
-	PrivateKey   string `json:"privateKey"` // encrypted under LMK
-	ErrorCode    string `json:"errorCode"`
+	PublicKey  string `json:"publicKey"`
+	PrivateKey string `json:"privateKey"` // encrypted under LMK
+	ErrorCode  string `json:"errorCode"`
 }
 
 type KeyImportRequest struct {
-	KeyType      int    `json:"keyType"`
-	ZMKKey       string `json:"zmkKey"`       // ZMK under LMK
-	ImportedKey  string `json:"importedKey"`   // key under ZMK
-	Scheme       string `json:"scheme"`
+	KeyType     int    `json:"keyType"`
+	ZMKKey      string `json:"zmkKey"`      // ZMK under LMK
+	ImportedKey string `json:"importedKey"` // key under ZMK
+	Scheme      string `json:"scheme"`
 }
 
 type KeyExportRequest struct {
-	KeyType      int    `json:"keyType"`
-	ZMKKey       string `json:"zmkKey"`
-	KeyToExport  string `json:"keyToExport"`   // key under LMK
-	Scheme       string `json:"scheme"`
+	KeyType     int    `json:"keyType"`
+	ZMKKey      string `json:"zmkKey"`
+	KeyToExport string `json:"keyToExport"` // key under LMK
+	Scheme      string `json:"scheme"`
 }
 
 type KeyTranslateRequest struct {
@@ -244,19 +256,19 @@ type KeyTranslateRequest struct {
 }
 
 type CheckValueRequest struct {
-	KeyType      int    `json:"keyType"`
-	Key          string `json:"key"`
-	CheckLength  int    `json:"checkLength"` // 0=16 hex, 1=6 hex
+	KeyType     int    `json:"keyType"`
+	Key         string `json:"key"`
+	CheckLength int    `json:"checkLength"` // 0=16 hex, 1=6 hex
 }
 
 type PINVerifyRequest struct {
-	TPK           string `json:"tpk"`
-	PINBlock      string `json:"pinBlock"`
-	PINBlockFormat string `json:"pinBlockFormat"` // 01=ISO 9564-1
-	PAN           string `json:"pan"`
-	Offset        string `json:"offset"`
-	CheckLength   int    `json:"checkLength"`
-	ValidationData string `json:"validationData"`
+	TPK                 string `json:"tpk"`
+	PINBlock            string `json:"pinBlock"`
+	PINBlockFormat      string `json:"pinBlockFormat"` // 01=ISO 9564-1
+	PAN                 string `json:"pan"`
+	Offset              string `json:"offset"`
+	CheckLength         int    `json:"checkLength"`
+	ValidationData      string `json:"validationData"`
 	DecimalisationTable string `json:"decimalisationTable"`
 }
 
@@ -271,60 +283,60 @@ type PINTranslateRequest struct {
 }
 
 type PINOffsetRequest struct {
-	PVK             string `json:"pvk"`
-	PINBlock        string `json:"pinBlock"`
-	PINBlockFormat  string `json:"pinBlockFormat"`
-	CheckLength     int    `json:"checkLength"`
-	PAN             string `json:"pan"`
+	PVK                 string `json:"pvk"`
+	PINBlock            string `json:"pinBlock"`
+	PINBlockFormat      string `json:"pinBlockFormat"`
+	CheckLength         int    `json:"checkLength"`
+	PAN                 string `json:"pan"`
 	DecimalisationTable string `json:"decimalisationTable"`
-	ValidationData  string `json:"validationData"`
+	ValidationData      string `json:"validationData"`
 }
 
 type PINChangeRequest struct {
-	CurrentTPK     string `json:"currentTPK"`
-	NewTPK         string `json:"newTPK"`
-	MaxPINLength   int    `json:"maxPINLength"`
+	CurrentTPK      string `json:"currentTPK"`
+	NewTPK          string `json:"newTPK"`
+	MaxPINLength    int    `json:"maxPINLength"`
 	CurrentPINBlock string `json:"currentPINBlock"`
-	NewPINBlock    string `json:"newPINBlock"`
-	SourceFormat   string `json:"sourceFormat"`
-	DestFormat     string `json:"destFormat"`
-	PAN            string `json:"pan"`
+	NewPINBlock     string `json:"newPINBlock"`
+	SourceFormat    string `json:"sourceFormat"`
+	DestFormat      string `json:"destFormat"`
+	PAN             string `json:"pan"`
 }
 
 type CVVVerifyRequest struct {
-	CVK      string `json:"cvk"`
-	PAN      string `json:"pan"`
-	ExpDate  string `json:"expDate"`  // YYMM
+	CVK         string `json:"cvk"`
+	PAN         string `json:"pan"`
+	ExpDate     string `json:"expDate"` // YYMM
 	ServiceCode string `json:"serviceCode"`
-	CVV      string `json:"cvv"`
+	CVV         string `json:"cvv"`
 }
 
 type CVVGenerateRequest struct {
-	CVK      string `json:"cvk"`
-	PAN      string `json:"pan"`
-	ExpDate  string `json:"expDate"`
+	CVK         string `json:"cvk"`
+	PAN         string `json:"pan"`
+	ExpDate     string `json:"expDate"`
 	ServiceCode string `json:"serviceCode"`
 }
 
 type ARQCValidateRequest struct {
-	SchemeID     int    `json:"schemeId"` // 0=Visa, 1=MC
-	MKdac        string `json:"mkAc"`    // Master key for AC
-	PAN          string `json:"pan"`
-	PANSeqNo     string `json:"panSeqNo"`
-	ATC          string `json:"atc"`
-	UN           string `json:"un"`      // unpredictable number
-	TransData    string `json:"transData"`
-	ARQC         string `json:"arqc"`
+	SchemeID  int    `json:"schemeId"` // 0=Visa, 1=MC
+	MKdac     string `json:"mkAc"`     // Master key for AC
+	PAN       string `json:"pan"`
+	PANSeqNo  string `json:"panSeqNo"`
+	ATC       string `json:"atc"`
+	UN        string `json:"un"` // unpredictable number
+	TransData string `json:"transData"`
+	ARQC      string `json:"arqc"`
 }
 
 type ARPCGenerateRequest struct {
-	SchemeID     int    `json:"schemeId"`
-	MKdac        string `json:"mkAc"`
-	PAN          string `json:"pan"`
-	PANSeqNo     string `json:"panSeqNo"`
-	ATC          string `json:"atc"`
-	ARQC         string `json:"arqc"`
-	ARC          string `json:"arc"` // authorisation response code
+	SchemeID int    `json:"schemeId"`
+	MKdac    string `json:"mkAc"`
+	PAN      string `json:"pan"`
+	PANSeqNo string `json:"panSeqNo"`
+	ATC      string `json:"atc"`
+	ARQC     string `json:"arqc"`
+	ARC      string `json:"arc"` // authorisation response code
 }
 
 type EMVMACRequest struct {
@@ -354,22 +366,22 @@ type TokenProvisionRequest struct {
 }
 
 type P2PERequest struct {
-	BDK       string `json:"bdk"`
-	KSN       string `json:"ksn"`
-	Data      string `json:"data"`
-	Mode      string `json:"mode"` // ECB, CBC
+	BDK  string `json:"bdk"`
+	KSN  string `json:"ksn"`
+	Data string `json:"data"`
+	Mode string `json:"mode"` // ECB, CBC
 }
 
 type RKLLoadKeyRequest struct {
-	TMK       string `json:"tmk"`     // terminal master key
-	NewKey    string `json:"newKey"`
-	KeyType   string `json:"keyType"` // TPK, TAK, etc.
+	TMK        string `json:"tmk"` // terminal master key
+	NewKey     string `json:"newKey"`
+	KeyType    string `json:"keyType"` // TPK, TAK, etc.
 	TerminalID string `json:"terminalId"`
 }
 
 type RawCommandRequest struct {
-	EndpointID  int    `json:"endpointId"`
-	CommandHex  string `json:"commandHex"`
+	EndpointID int    `json:"endpointId"`
+	CommandHex string `json:"commandHex"`
 }
 
 // StringArray implements sql.Scanner and driver.Valuer for PostgreSQL text[] columns.

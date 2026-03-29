@@ -23,7 +23,7 @@ type SecurityProviderBackend interface {
 func GetProviderBackend(provider *SecurityProvider, masterKeyHex string) SecurityProviderBackend {
 	switch provider.ProviderType {
 	case "hsm":
-		return NewHSMProvider(provider)
+		return NewHSMProvider(provider, masterKeyHex)
 	case "ca":
 		return NewCAProvider(provider, masterKeyHex)
 	default:

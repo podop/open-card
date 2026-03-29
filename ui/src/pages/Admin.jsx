@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { fetchJSON } from '../api';
+import { useAuth } from '../AuthContext';
 import { NetworkIcon } from '../components/NetworkBadge';
 import { useNetworks } from '../hooks/useNetworks';
 import KeySourceModal from '../components/KeySourceModal';
@@ -43,6 +44,7 @@ export default function Admin() {
 /* ── Core Settings ─────────────────────────────────────────── */
 
 function CoreSettings() {
+  const { canDo } = useAuth();
   const [config, setConfig] = useState(null);
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
@@ -173,10 +175,10 @@ function CoreSettings() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+      {canDo('WriteConfig') && <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
         <button className="btn btn-secondary" onClick={load}>Reset</button>
         <button className="btn btn-primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save Settings'}</button>
-      </div>
+      </div>}
     </div>
   );
 }
@@ -193,6 +195,7 @@ function ReadonlyField({ label, value, mono }) {
 /* ── Networks & Certificates ───────────────────────────────── */
 
 function NetworksTab() {
+  const { canDo } = useAuth();
   const { networks, loading: netsLoading, invalidate: invalidateNets } = useNetworks();
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -222,7 +225,7 @@ function NetworksTab() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {msg && <div className={`admin-msg admin-msg-${msg.type}`}>{msg.text}</div>}
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button className="btn btn-primary btn-small" onClick={() => { setEditNet(null); setShowAddForm(true); }}>Add Network</button>
+        {canDo('WriteNetworkSettings') && <button className="btn btn-primary btn-small" onClick={() => { setEditNet(null); setShowAddForm(true); }}>Add Network</button>}
       </div>
       {networks.map(net => {
         const pol = policies.find(p => p.network === net.name) || {};
@@ -231,6 +234,8 @@ function NetworksTab() {
             key={net.name}
             netEntry={net}
             policy={pol}
+            globalMasterKey={config?.crypto?.masterKeyHex}
+            canWrite={canDo('WriteNetworkSettings')}
             expanded={expandedNet === net.name}
             onToggle={() => setExpandedNet(expandedNet === net.name ? null : net.name)}
             onUpdated={() => { loadConfig(); invalidateNets(); setMsg({ type: 'success', text: `${net.displayName} updated` }); }}
@@ -269,7 +274,7 @@ const CERT_TYPES = [
   { key: 'signing', label: 'Signing Certificate', desc: 'Message signing certificate (ARes, RReq)' },
 ];
 
-function NetworkCard({ netEntry, policy, expanded, onToggle, onUpdated, onEdit, onDelete, onError }) {
+function NetworkCard({ netEntry, policy, globalMasterKey, expanded, onToggle, onUpdated, onEdit, onDelete, onError, canWrite }) {
   const [saving, setSaving] = useState(false);
   const [frictionless, setFrictionless] = useState(policy.allowFrictionless);
   const [masterKey, setMasterKey] = useState('');
@@ -350,8 +355,8 @@ function NetworkCard({ netEntry, policy, expanded, onToggle, onUpdated, onEdit, 
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button className="btn btn-secondary btn-small" onClick={e => { e.stopPropagation(); onEdit(); }} title="Edit network">Edit</button>
-          <button className="btn btn-danger btn-small" onClick={e => { e.stopPropagation(); onDelete(); }} title="Delete network">Delete</button>
+          {canWrite && <button className="btn btn-secondary btn-small" onClick={e => { e.stopPropagation(); onEdit(); }} title="Edit network">Edit</button>}
+          {canWrite && <button className="btn btn-danger btn-small" onClick={e => { e.stopPropagation(); onDelete(); }} title="Delete network">Delete</button>}
           <span className={`badge ${netEntry.active ? (frictionless ? 'badge-green' : 'badge-yellow') : 'badge-muted'}`}>
             {!netEntry.active ? 'Inactive' : frictionless ? 'Frictionless' : 'Challenge'}
           </span>
@@ -386,13 +391,17 @@ function NetworkCard({ netEntry, policy, expanded, onToggle, onUpdated, onEdit, 
                   <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{frictionless ? 'Yes' : 'No'}</span>
                 </div>
               </div>
-              <MasterKeyField masterKey={masterKey} setMasterKey={setMasterKey} policy={policy} network={network} />
             </div>
-            <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
+          </div>
+
+          <div className="admin-section">
+            <h4 className="admin-section-title">Custom Master Key</h4>
+            <MasterKeyField masterKey={masterKey} setMasterKey={setMasterKey} policy={policy} network={network} globalMasterKey={globalMasterKey} />
+            {canWrite && <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
               <button className="btn btn-primary btn-small" onClick={handleSavePolicy} disabled={saving}>
                 {saving ? 'Saving...' : 'Save Policy'}
               </button>
-            </div>
+            </div>}
           </div>
 
           {certLoading ? (
@@ -417,31 +426,55 @@ function NetworkCard({ netEntry, policy, expanded, onToggle, onUpdated, onEdit, 
   );
 }
 
-function MasterKeyField({ masterKey, setMasterKey, policy, network }) {
-  const [mode, setMode] = useState('manual');
-  const [showModal, setShowModal] = useState(false);
+function MasterKeyField({ masterKey, setMasterKey, policy, network, globalMasterKey }) {
+  const [modalTab, setModalTab] = useState(null);
+  const [pendingKey, setPendingKey] = useState('');
+
+  const maskKey = (hex) => {
+    if (!hex || hex.length <= 8) return hex;
+    return hex.substring(0, 8) + '*'.repeat(hex.length - 8);
+  };
+
+  const handleSelect = (hexValue) => {
+    setMasterKey(hexValue);
+    setPendingKey(hexValue);
+    setModalTab(null);
+  };
+
+  const displayKey = pendingKey || masterKey;
 
   return (
     <div className="form-field">
       <label className="form-label">Custom Master Key (Hex)</label>
       <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-        {['manual', 'generate', 'existing'].map(m => (
-          <button key={m} type="button" className={`btn btn-small ${mode === m ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => { setMode(m); if (m !== 'manual') setShowModal(true); }}>
-            {m === 'manual' ? 'Manual' : m === 'generate' ? 'Generate New' : 'Use Existing'}
-          </button>
-        ))}
+        <button type="button" className="btn btn-small btn-secondary" onClick={() => setModalTab('generate')}>Generate New</button>
+        <button type="button" className="btn btn-small btn-secondary" onClick={() => setModalTab('existing')}>Use Existing</button>
       </div>
-      <input className="filter-input mono" value={masterKey} onChange={e => setMasterKey(e.target.value)}
+      <input type="password" className="filter-input mono" value={masterKey} onChange={e => { setMasterKey(e.target.value); setPendingKey(e.target.value); }}
         placeholder={policy.hasCustomKey ? '(custom key set)' : '(using global key)'} style={{ fontSize: 11 }} />
       <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>64 hex chars. Leave empty to keep current.</span>
-      {showModal && (
+      <table style={{ width: '100%', marginTop: 8, fontSize: 11, borderCollapse: 'collapse' }}>
+        <thead>
+          <tr>
+            <th style={{ textAlign: 'left', padding: '4px 8px', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-color)' }}>Key Type</th>
+            <th style={{ textAlign: 'left', padding: '4px 8px', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-color)' }}>Current Key</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style={{ padding: '4px 8px' }}>AES-256 {policy.hasCustomKey ? <span className="badge badge-green" style={{ fontSize: 9, marginLeft: 4 }}>CUSTOM</span> : <span className="badge badge-muted" style={{ fontSize: 9, marginLeft: 4 }}>GLOBAL</span>}</td>
+            <td className="mono" style={{ padding: '4px 8px', wordBreak: 'break-all' }}>{displayKey ? maskKey(displayKey) : (policy.masterKeyMasked || globalMasterKey || '(not set)')}</td>
+          </tr>
+        </tbody>
+      </table>
+      {modalTab && (
         <KeySourceModal
           title={`Master Key for ${network}`}
           keyType="AES-256"
           keyUsage="encryption"
-          onSelect={(hexValue) => { setMasterKey(hexValue); setShowModal(false); setMode('manual'); }}
-          onClose={() => { setShowModal(false); setMode('manual'); }}
+          initialTab={modalTab}
+          onSelect={handleSelect}
+          onClose={() => setModalTab(null)}
         />
       )}
     </div>
@@ -622,6 +655,7 @@ function CertField({ label, value, mono, expired }) {
 /* ── BIN Configuration ─────────────────────────────────────── */
 
 function BinConfigTab() {
+  const { canDo } = useAuth();
   const { networks } = useNetworks();
   const networkNames = networks.map(n => n.name);
   const networkMap = Object.fromEntries(networks.map(n => [n.name, n]));
@@ -736,7 +770,7 @@ function BinConfigTab() {
           <span className="card-title">BIN Exclusions</span>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Override network rules for specific BIN ranges</span>
-            <button className="btn btn-primary btn-small" onClick={() => { setEditExc(null); setShowExcForm(true); }}>Add Exclusion</button>
+            {canDo('WriteBINSettings') && <button className="btn btn-primary btn-small" onClick={() => { setEditExc(null); setShowExcForm(true); }}>Add Exclusion</button>}
           </div>
         </div>
         <div className="table-wrap">
@@ -769,16 +803,18 @@ function BinConfigTab() {
                   <td><span className="badge badge-cyan">{exc.defaultChallengeChannel?.toUpperCase()}</span></td>
                   <td><span className={`badge ${exc.secondFactorMode && exc.secondFactorMode !== 'none' ? 'badge-purple' : 'badge-muted'}`}>{(exc.secondFactorMode || 'none').toUpperCase()}</span></td>
                   <td><span className={`badge ${exc.active ? 'badge-green' : 'badge-muted'}`}>{exc.active ? 'Yes' : 'No'}</span></td>
-                  <td>
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      <button className="btn btn-secondary btn-small" onClick={() => { setEditExc(exc); setShowExcForm(true); }}>Edit</button>
-                      <button className="btn btn-danger btn-small" onClick={async () => {
-                        await fetchJSON(`/bin-exclusions/${exc.id}`, {}, 'DELETE');
-                        load();
-                        setMsg({ type: 'success', text: 'Exclusion deleted' });
-                      }}>Delete</button>
-                    </div>
-                  </td>
+                  {canDo('WriteBINSettings') && (
+                    <td>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button className="btn btn-secondary btn-small" onClick={() => { setEditExc(exc); setShowExcForm(true); }}>Edit</button>
+                        <button className="btn btn-danger btn-small" onClick={async () => {
+                          await fetchJSON(`/bin-exclusions/${exc.id}`, {}, 'DELETE');
+                          load();
+                          setMsg({ type: 'success', text: 'Exclusion deleted' });
+                        }}>Delete</button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
               {exclusions.length === 0 && <tr><td colSpan={11} className="empty-state">No BIN exclusions configured</td></tr>}

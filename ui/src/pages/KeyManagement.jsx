@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../AuthContext';
 import { secretsFetch } from '../secretsApi';
 
 const KEY_TYPES = ['RSA-1024','RSA-2048','RSA-3072','RSA-4096','AES-128','AES-192','AES-256','3DES','X509'];
 const KEY_USAGES = ['general','signing','encryption','tls','authentication'];
 
 export default function KeyManagement() {
+  const { canDo } = useAuth();
   const [keys, setKeys] = useState([]);
   const [providers, setProviders] = useState([]);
   const [policies, setPolicies] = useState([]);
@@ -97,8 +99,8 @@ export default function KeyManagement() {
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
             </select>
-            <button className="btn btn-primary btn-small" onClick={() => setModal('generate')}>Generate Key</button>
-            <button className="btn btn-secondary btn-small" onClick={() => setModal('import')}>Import Key</button>
+            {canDo('WriteKeys') && <button className="btn btn-primary btn-small" onClick={() => setModal('generate')}>Generate Key</button>}
+            {canDo('WriteKeys') && <button className="btn btn-secondary btn-small" onClick={() => setModal('import')}>Import Key</button>}
             <button className="btn btn-secondary btn-small" onClick={() => setModal('certificate')}>Generate Certificate</button>
           </div>
         </div>
@@ -123,11 +125,11 @@ export default function KeyManagement() {
                   <td>
                     <div style={{display:'flex', gap:4, flexWrap:'wrap'}}>
                       <button className="btn btn-secondary btn-small" onClick={() => setModal({type:'detail', key:k})}>Details</button>
-                      <button className="btn btn-secondary btn-small" onClick={() => handleRotate(k)}>Rotate</button>
-                      <button className="btn btn-secondary btn-small" onClick={() => setModal({type:'access', key:k})}>Access</button>
+                      {canDo('WriteKeys') && <button className="btn btn-secondary btn-small" onClick={() => handleRotate(k)}>Rotate</button>}
+                      {canDo('ManageKeyAccess') && <button className="btn btn-secondary btn-small" onClick={() => setModal({type:'access', key:k})}>Access</button>}
                       <button className="btn btn-secondary btn-small" onClick={() => setModal({type:'usage', key:k})}>Log</button>
-                      <button className="btn btn-secondary btn-small" onClick={() => setModal({type:'policy', key:k})}>Policy</button>
-                      <button className="btn btn-danger btn-small" onClick={() => handleDelete(k)}>Delete</button>
+                      {canDo('WriteKeys') && <button className="btn btn-secondary btn-small" onClick={() => setModal({type:'policy', key:k})}>Policy</button>}
+                      {canDo('WriteKeys') && <button className="btn btn-danger btn-small" onClick={() => handleDelete(k)}>Delete</button>}
                     </div>
                   </td>
                 </tr>
