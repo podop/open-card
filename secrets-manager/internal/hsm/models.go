@@ -147,22 +147,9 @@ type HSMEndpointGroup struct {
 	UpdatedAt   time.Time `db:"updated_at" json:"updatedAt"`
 }
 
-type HSMSession struct {
-	ID          string          `db:"id" json:"id"`
-	EndpointID  NullInt32       `db:"endpoint_id" json:"endpointId,omitempty"`
-	ClientLabel string          `db:"client_label" json:"clientLabel"`
-	Strategy    string          `db:"strategy" json:"strategy"`
-	Status      string          `db:"status" json:"status"`
-	LastPing    time.Time       `db:"last_ping" json:"lastPing"`
-	TTLSeconds  int             `db:"ttl_seconds" json:"ttlSeconds"`
-	Metadata    json.RawMessage `db:"metadata" json:"metadata"`
-	CreatedAt   time.Time       `db:"created_at" json:"createdAt"`
-	ClosedAt    NullTime        `db:"closed_at" json:"closedAt,omitempty"`
-}
-
 type HSMAuditEntry struct {
 	ID           int64      `db:"id" json:"id"`
-	SessionID    NullString `db:"session_id" json:"sessionId,omitempty"`
+	GroupID      NullInt32  `db:"group_id" json:"groupId,omitempty"`
 	EndpointID   NullInt32  `db:"endpoint_id" json:"endpointId,omitempty"`
 	CommandCode  string     `db:"command_code" json:"commandCode"`
 	APIOperation string     `db:"api_operation" json:"apiOperation"`

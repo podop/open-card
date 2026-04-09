@@ -122,7 +122,7 @@ func (h *Handler) CreateEndpoint(c *gin.Context) {
 			"hostCommandTimeout": ep.HostCommandTimeout,
 			"connectionTimeout":  ep.ConnectionTimeout,
 			"maxConnections":     ep.MaxConnections,
-			"lmkIdentifier":     ep.LMKIdentifier,
+			"lmkIdentifier":      ep.LMKIdentifier,
 		})
 		provID, provErr := h.secretsStore.CreateLinkedProvider(c.Request.Context(), ep.Name, cfg, ep.CreatedBy)
 		if provErr != nil {
@@ -315,80 +315,151 @@ func (h *Handler) GetModelCapabilities(c *gin.Context) {
 	c.JSON(http.StatusOK, info)
 }
 
-// ── Sessions ────────────────────────────────────────────────────
+// ── Endpoint Groups ────────────────────────────────────────────
 
-func (h *Handler) ListSessions(c *gin.Context) {
-	sessions, err := h.store.ListActiveSessions(c.Request.Context())
+func (h *Handler) ListEndpointGroups(c *gin.Context) {
+	groups, err := h.store.ListEndpointGroups(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list sessions"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list endpoint groups"})
 		return
 	}
-	c.JSON(http.StatusOK, sessions)
+	// Enrich each group with its endpoint IDs
+	type groupWithEndpoints struct {
+		HSMEndpointGroup
+		EndpointIDs []int `json:"endpointIds"`
+	}
+	var result []groupWithEndpoints
+	for _, g := range groups {
+		eps, _ := h.store.GetEndpointsByGroup(c.Request.Context(), g.ID)
+		ids := make([]int, 0, len(eps))
+		for _, ep := range eps {
+			ids = append(ids, ep.ID)
+		}
+		result = append(result, groupWithEndpoints{HSMEndpointGroup: g, EndpointIDs: ids})
+	}
+	c.JSON(http.StatusOK, result)
 }
 
-func (h *Handler) CreateSession(c *gin.Context) {
-	var req struct {
-		ClientLabel string `json:"clientLabel"`
-		Strategy    string `json:"strategy"`
-		EndpointID  *int   `json:"endpointId"`
-		TTLSeconds  int    `json:"ttlSeconds"`
+func (h *Handler) GetEndpointGroup(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
 	}
-	if err := c.ShouldBindJSON(&req); err != nil {
+	g, err := h.store.GetEndpointGroup(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "endpoint group not found"})
+		return
+	}
+	eps, _ := h.store.GetEndpointsByGroup(c.Request.Context(), id)
+	ids := make([]int, 0, len(eps))
+	for _, ep := range eps {
+		ids = append(ids, ep.ID)
+	}
+	c.JSON(http.StatusOK, gin.H{"group": g, "endpointIds": ids})
+}
+
+func (h *Handler) CreateEndpointGroup(c *gin.Context) {
+	var g HSMEndpointGroup
+	if err := c.ShouldBindJSON(&g); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
-	if req.Strategy == "" {
-		req.Strategy = "round-robin"
+	if g.Strategy == "" {
+		g.Strategy = "round-robin"
 	}
-	if req.TTLSeconds <= 0 {
-		req.TTLSeconds = 300
-	}
+	g.CreatedBy = c.GetInt("authUserID")
 
-	sess := &HSMSession{
-		ClientLabel: req.ClientLabel,
-		Strategy:    req.Strategy,
-		TTLSeconds:  req.TTLSeconds,
-		Metadata:    json.RawMessage(`{}`),
-	}
-	if req.EndpointID != nil {
-		sess.EndpointID = NullInt32{Int32: int32(*req.EndpointID), Valid: true}
-	}
-
-	id, err := h.store.CreateSession(c.Request.Context(), sess)
+	id, err := h.store.CreateEndpointGroup(c.Request.Context(), &g)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	created, _ := h.store.GetSession(c.Request.Context(), id)
+	created, _ := h.store.GetEndpointGroup(c.Request.Context(), id)
 	c.JSON(http.StatusCreated, created)
 }
 
-func (h *Handler) GetSession(c *gin.Context) {
-	id := c.Param("id")
-	sess, err := h.store.GetSession(c.Request.Context(), id)
+func (h *Handler) UpdateEndpointGroup(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "session not found"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	c.JSON(http.StatusOK, sess)
+	var g HSMEndpointGroup
+	if err := c.ShouldBindJSON(&g); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+	if err := h.store.UpdateEndpointGroup(c.Request.Context(), id, &g); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	updated, _ := h.store.GetEndpointGroup(c.Request.Context(), id)
+	c.JSON(http.StatusOK, updated)
 }
 
-func (h *Handler) DeleteSession(c *gin.Context) {
-	id := c.Param("id")
-	if err := h.store.CloseSession(c.Request.Context(), id); err != nil {
+func (h *Handler) DeleteEndpointGroup(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	if err := h.store.DeleteEndpointGroup(c.Request.Context(), id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-func (h *Handler) PingSession(c *gin.Context) {
-	id := c.Param("id")
-	if err := h.store.TouchSession(c.Request.Context(), id); err != nil {
+func (h *Handler) AssignEndpointToGroup(c *gin.Context) {
+	groupID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid group id"})
+		return
+	}
+	var req struct {
+		EndpointID int `json:"endpointId"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+	if err := h.store.SetEndpointGroup(c.Request.Context(), req.EndpointID, &groupID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"ok": true, "pingedAt": time.Now()})
+	// Refresh endpoint in gateway so GroupID is updated
+	ep, _ := h.store.GetEndpoint(c.Request.Context(), req.EndpointID)
+	if ep != nil {
+		h.gateway.RemoveEndpoint(req.EndpointID)
+		if ep.Enabled {
+			h.gateway.AddEndpoint(*ep)
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (h *Handler) RemoveEndpointFromGroup(c *gin.Context) {
+	var req struct {
+		EndpointID int `json:"endpointId"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+	if err := h.store.SetEndpointGroup(c.Request.Context(), req.EndpointID, nil); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	// Refresh endpoint in gateway
+	ep, _ := h.store.GetEndpoint(c.Request.Context(), req.EndpointID)
+	if ep != nil {
+		h.gateway.RemoveEndpoint(req.EndpointID)
+		if ep.Enabled {
+			h.gateway.AddEndpoint(*ep)
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
 // ── Crypto: Keys ────────────────────────────────────────────────
@@ -823,7 +894,17 @@ func (h *Handler) executeCommand(
 	}
 
 	ctx := c.Request.Context()
-	pool, endpointID, routeErr := h.gateway.RouteRequest(ctx, capability)
+
+	var pool *ConnectionPool
+	var endpointID int
+	var routeErr error
+
+	if gid := c.Query("groupId"); gid != "" {
+		groupID, _ := strconv.Atoi(gid)
+		pool, endpointID, routeErr = h.gateway.RouteRequestToGroup(ctx, groupID, capability)
+	} else {
+		pool, endpointID, routeErr = h.gateway.RouteRequest(ctx, capability)
+	}
 	if routeErr != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": routeErr.Error()})
 		return
@@ -886,7 +967,7 @@ func (h *Handler) executeCommand(
 
 func (h *Handler) stubCommand(c *gin.Context, apiOp string, _ string) {
 	c.JSON(http.StatusNotImplemented, gin.H{
-		"error":   "not yet implemented",
+		"error":     "not yet implemented",
 		"operation": apiOp,
 	})
 }

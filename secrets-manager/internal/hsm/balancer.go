@@ -8,6 +8,7 @@ import (
 // EndpointState holds runtime state for balancing decisions.
 type EndpointState struct {
 	ID           int
+	GroupID      int
 	Weight       int
 	Capabilities []string
 	Status       string

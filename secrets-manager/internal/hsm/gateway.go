@@ -86,7 +86,7 @@ func (g *GatewayManager) SetStrategy(name string) {
 	g.log.Info("HSM Gateway: strategy changed", zap.String("strategy", name))
 }
 
-// RouteRequest selects an endpoint based on the balancing strategy and required capability.
+// RouteRequest selects an endpoint based on the global default strategy and required capability.
 func (g *GatewayManager) RouteRequest(ctx context.Context, capability string) (*ConnectionPool, int, error) {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
@@ -101,12 +101,65 @@ func (g *GatewayManager) RouteRequest(ctx context.Context, capability string) (*
 		return nil, 0, fmt.Errorf("no HSM endpoints available")
 	}
 
-	selected := g.strategy.Select(available, capability)
+	selected := g.selectWithCapabilityFallback(g.strategy, available, capability)
 	if selected == nil {
 		return nil, 0, fmt.Errorf("no HSM endpoint supports capability: %s", capability)
 	}
 
 	return selected.Pool, selected.ID, nil
+}
+
+// RouteRequestToGroup selects an endpoint within a specific group.
+// Capability pre-filtering always applies: if the group's strategy doesn't find a capable
+// endpoint in its normal rotation, fall back to the first capable endpoint in the group.
+func (g *GatewayManager) RouteRequestToGroup(ctx context.Context, groupID int, capability string) (*ConnectionPool, int, error) {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
+	group, err := g.store.GetEndpointGroup(ctx, groupID)
+	if err != nil {
+		return nil, 0, fmt.Errorf("endpoint group %d not found", groupID)
+	}
+	if !group.Enabled {
+		return nil, 0, fmt.Errorf("endpoint group %q is disabled", group.Name)
+	}
+
+	var available []*EndpointState
+	for _, state := range g.states {
+		if state.GroupID == groupID && (state.Status == "online" || state.Status == "degraded") {
+			available = append(available, state)
+		}
+	}
+	if len(available) == 0 {
+		return nil, 0, fmt.Errorf("no online endpoints in group %q", group.Name)
+	}
+
+	strategy := NewStrategy(group.Strategy)
+	selected := g.selectWithCapabilityFallback(strategy, available, capability)
+	if selected == nil {
+		return nil, 0, fmt.Errorf("no endpoint in group %q supports capability: %s", group.Name, capability)
+	}
+
+	return selected.Pool, selected.ID, nil
+}
+
+// selectWithCapabilityFallback uses the strategy to select an endpoint. If no capable endpoint
+// is found through the strategy's normal selection, it falls back to the first capable endpoint.
+func (g *GatewayManager) selectWithCapabilityFallback(strategy BalancingStrategy, endpoints []*EndpointState, capability string) *EndpointState {
+	selected := strategy.Select(endpoints, capability)
+	if selected != nil {
+		return selected
+	}
+	if capability == "" {
+		return nil
+	}
+	// Fallback: find the first capable endpoint regardless of strategy
+	for _, ep := range endpoints {
+		if HasCapability(ep.Capabilities, capability) {
+			return ep
+		}
+	}
+	return nil
 }
 
 // AddEndpoint registers a new endpoint and creates its connection pool.
@@ -243,8 +296,13 @@ func (g *GatewayManager) SendCommand(ctx context.Context, endpointID int, cmdCod
 func (g *GatewayManager) addPool(ep HSMEndpoint) {
 	pool := NewPool(ep, g.log)
 	g.pools[ep.ID] = pool
+	groupID := 0
+	if ep.GroupID.Valid {
+		groupID = int(ep.GroupID.Int32)
+	}
 	g.states[ep.ID] = &EndpointState{
 		ID:           ep.ID,
+		GroupID:      groupID,
 		Weight:       ep.Weight,
 		Capabilities: []string(ep.Capabilities),
 		Status:       ep.Status,
