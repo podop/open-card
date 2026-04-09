@@ -423,6 +423,268 @@ a:hover { color: var(--accent-hover); }
 }
 .chart-card .card-title { margin-bottom: 16px; }
 
+.dashboard-card {
+  padding: 18px 20px;
+}
+
+.dashboard-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.dashboard-split-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.dashboard-single-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.dashboard-tree-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--dashboard-tree-columns, 1), minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.dashboard-bottom-grid {
+  margin-top: 16px;
+}
+
+.dashboard-top-card,
+.dashboard-bottom-card {
+  min-width: 0;
+}
+
+.dashboard-chart-frame {
+  height: 250px;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-tree-frame {
+  width: 100%;
+  overflow: hidden;
+}
+
+.dashboard-map-frame {
+  width: 100%;
+  min-height: 250px;
+}
+
+.dashboard-tree-link {
+  fill: none;
+  stroke: #d9dfec;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.dashboard-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.dashboard-chart-empty {
+  height: 250px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dashboard-toggle {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-card-alt);
+}
+
+.dashboard-toggle button {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 7px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dashboard-toggle button.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.dashboard-grid-line {
+  stroke: #e8edf3;
+  stroke-dasharray: 4 4;
+}
+
+.dashboard-axis-label {
+  fill: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 500;
+}
+
+.dashboard-axis-left {
+  text-anchor: end;
+}
+
+.dashboard-legend {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 8px;
+  color: var(--text-secondary);
+  font-size: 11.5px;
+}
+
+.dashboard-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.dashboard-node-label {
+  fill: var(--text-primary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.dashboard-node-value {
+  fill: var(--text-secondary);
+  font-size: 11px;
+}
+
+.dashboard-rate-value {
+  fill: var(--text-primary);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.dashboard-rate-label {
+  fill: var(--text-secondary);
+  font-size: 10px;
+}
+
+.dashboard-rate-subvalue {
+  fill: var(--text-muted);
+  font-size: 10px;
+}
+
+.dashboard-orbit-ring {
+  fill: none;
+  stroke: #e8ebf6;
+  stroke-width: 1.2;
+}
+
+.dashboard-orbit-faint {
+  stroke: #f0f2fa;
+}
+
+.dashboard-orbit-dashed {
+  stroke-dasharray: 1 6;
+  stroke-linecap: round;
+}
+
+.dashboard-center-dots {
+  stroke: #7c88dd;
+  stroke-width: 3.4;
+  stroke-linecap: round;
+  stroke-dasharray: 0 10;
+  opacity: 0.7;
+}
+
+.dashboard-overflow-note {
+  fill: var(--text-muted);
+  font-size: 10px;
+}
+
+.dashboard-tree-label {
+  min-width: 88px;
+  max-width: 126px;
+  padding: 4px 0;
+}
+
+.dashboard-tree-name {
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.dashboard-tree-meta {
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.15;
+  margin-top: 2px;
+}
+
+.dashboard-tree-node-name {
+  fill: var(--text-primary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.dashboard-tree-node-meta {
+  fill: var(--text-secondary);
+  font-size: 9.5px;
+}
+
+.dashboard-map-bg {
+  fill: #f7fafc;
+  stroke: #dfe6ef;
+}
+
+.dashboard-map-land {
+  fill: #e6edf5;
+  stroke: #d3dde8;
+  stroke-width: 1.2;
+}
+
+.dashboard-recent-list {
+  height: 250px;
+}
+
+.dashboard-recent-table {
+  height: 250px;
+  overflow: auto;
+}
+
+.dashboard-recent-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+@media (max-width: 1100px) {
+  .dashboard-split-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-tree-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ── Tables ────────────────────────────────────────────────── */
 .table-card {
   background: var(--bg-card);

@@ -73,7 +73,6 @@ func (s *Store) DeleteEndpoint(ctx context.Context, id int) error {
 	// Delete dependent rows first (no ON DELETE CASCADE in schema)
 	s.db.ExecContext(ctx, `DELETE FROM sm_hsm_metrics WHERE endpoint_id=$1`, id)   //nolint:errcheck
 	s.db.ExecContext(ctx, `DELETE FROM sm_hsm_audit_log WHERE endpoint_id=$1`, id) //nolint:errcheck
-	s.db.ExecContext(ctx, `DELETE FROM sm_hsm_sessions WHERE endpoint_id=$1`, id)  //nolint:errcheck
 	_, err := s.db.ExecContext(ctx, `DELETE FROM sm_hsm_endpoints WHERE id=$1`, id)
 	return err
 }
@@ -86,44 +85,65 @@ func (s *Store) UpdateEndpointStatus(ctx context.Context, id int, status string,
 	return err
 }
 
-// ── Sessions ────────────────────────────────────────────────────
+// ── Endpoint Groups ────────────────────────────────────────────
 
-func (s *Store) ListActiveSessions(ctx context.Context) ([]HSMSession, error) {
-	var sessions []HSMSession
-	err := s.db.SelectContext(ctx, &sessions,
-		`SELECT * FROM sm_hsm_sessions WHERE status='active' ORDER BY created_at DESC`)
+func (s *Store) ListEndpointGroups(ctx context.Context) ([]HSMEndpointGroup, error) {
+	var groups []HSMEndpointGroup
+	err := s.db.SelectContext(ctx, &groups, `SELECT * FROM sm_hsm_endpoint_groups ORDER BY name`)
 	if err != nil {
 		return nil, err
 	}
-	return sessions, nil
+	return groups, nil
 }
 
-func (s *Store) GetSession(ctx context.Context, id string) (*HSMSession, error) {
-	var sess HSMSession
-	if err := s.db.GetContext(ctx, &sess, `SELECT * FROM sm_hsm_sessions WHERE id=$1`, id); err != nil {
+func (s *Store) GetEndpointGroup(ctx context.Context, id int) (*HSMEndpointGroup, error) {
+	var g HSMEndpointGroup
+	if err := s.db.GetContext(ctx, &g, `SELECT * FROM sm_hsm_endpoint_groups WHERE id=$1`, id); err != nil {
 		return nil, err
 	}
-	return &sess, nil
+	return &g, nil
 }
 
-func (s *Store) CreateSession(ctx context.Context, sess *HSMSession) (string, error) {
-	var id string
+func (s *Store) CreateEndpointGroup(ctx context.Context, g *HSMEndpointGroup) (int, error) {
+	var id int
 	err := s.db.QueryRowContext(ctx,
-		`INSERT INTO sm_hsm_sessions (endpoint_id, client_label, strategy, ttl_seconds, metadata)
+		`INSERT INTO sm_hsm_endpoint_groups (name, description, strategy, enabled, created_by)
 		 VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-		sess.EndpointID, sess.ClientLabel, sess.Strategy, sess.TTLSeconds, sess.Metadata).Scan(&id)
+		g.Name, g.Description, g.Strategy, g.Enabled, g.CreatedBy).Scan(&id)
 	return id, err
 }
 
-func (s *Store) CloseSession(ctx context.Context, id string) error {
+func (s *Store) UpdateEndpointGroup(ctx context.Context, id int, g *HSMEndpointGroup) error {
 	_, err := s.db.ExecContext(ctx,
-		`UPDATE sm_hsm_sessions SET status='closed', closed_at=now() WHERE id=$1`, id)
+		`UPDATE sm_hsm_endpoint_groups SET name=$1, description=$2, strategy=$3, enabled=$4, updated_at=now() WHERE id=$5`,
+		g.Name, g.Description, g.Strategy, g.Enabled, id)
 	return err
 }
 
-func (s *Store) TouchSession(ctx context.Context, id string) error {
+func (s *Store) DeleteEndpointGroup(ctx context.Context, id int) error {
+	s.db.ExecContext(ctx, `UPDATE sm_hsm_endpoints SET group_id=NULL WHERE group_id=$1`, id) //nolint:errcheck
+	_, err := s.db.ExecContext(ctx, `DELETE FROM sm_hsm_endpoint_groups WHERE id=$1`, id)
+	return err
+}
+
+func (s *Store) GetEndpointsByGroup(ctx context.Context, groupID int) ([]HSMEndpoint, error) {
+	var eps []HSMEndpoint
+	err := s.db.SelectContext(ctx, &eps,
+		`SELECT * FROM sm_hsm_endpoints WHERE group_id=$1 AND enabled=true ORDER BY priority, id`, groupID)
+	if err != nil {
+		return nil, err
+	}
+	return eps, nil
+}
+
+func (s *Store) SetEndpointGroup(ctx context.Context, endpointID int, groupID *int) error {
+	if groupID == nil {
+		_, err := s.db.ExecContext(ctx,
+			`UPDATE sm_hsm_endpoints SET group_id=NULL, updated_at=now() WHERE id=$1`, endpointID)
+		return err
+	}
 	_, err := s.db.ExecContext(ctx,
-		`UPDATE sm_hsm_sessions SET last_ping=now() WHERE id=$1 AND status='active'`, id)
+		`UPDATE sm_hsm_endpoints SET group_id=$1, updated_at=now() WHERE id=$2`, *groupID, endpointID)
 	return err
 }
 
@@ -131,10 +151,10 @@ func (s *Store) TouchSession(ctx context.Context, id string) error {
 
 func (s *Store) LogAudit(ctx context.Context, entry *HSMAuditEntry) error {
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO sm_hsm_audit_log (session_id, endpoint_id, command_code, api_operation,
+		`INSERT INTO sm_hsm_audit_log (group_id, endpoint_id, command_code, api_operation,
 		 request_size, response_size, response_code, duration_ms, error_message, user_id, ip_address)
 		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-		entry.SessionID, entry.EndpointID, entry.CommandCode, entry.APIOperation,
+		entry.GroupID, entry.EndpointID, entry.CommandCode, entry.APIOperation,
 		entry.RequestSize, entry.ResponseSize, entry.ResponseCode,
 		entry.DurationMS, entry.ErrorMessage, entry.UserID, entry.IPAddress)
 	return err

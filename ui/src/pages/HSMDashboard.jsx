@@ -11,19 +11,19 @@ const STATUS_BADGE = {
 
 export default function HSMDashboard() {
   const [endpoints, setEndpoints] = useState([]);
-  const [sessions, setSessions] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState(null);
   const navigate = useNavigate();
 
   const load = useCallback(async () => {
     try {
-      const [eps, sess] = await Promise.all([
+      const [eps, grps] = await Promise.all([
         secretsFetch('/hsm/v1/endpoints'),
-        secretsFetch('/hsm/v1/sessions'),
+        secretsFetch('/hsm/v1/endpoint-groups'),
       ]);
       setEndpoints(eps || []);
-      setSessions(sess || []);
+      setGroups(grps || []);
     } catch (e) {
       setMsg({ type: 'error', text: 'Failed to load HSM data' });
     } finally {
@@ -35,7 +35,7 @@ export default function HSMDashboard() {
 
   const onlineCount = endpoints.filter(e => e.status === 'online').length;
   const degradedCount = endpoints.filter(e => e.status === 'degraded').length;
-  const activeSessions = sessions.filter(s => s.status === 'active').length;
+  const enabledGroups = groups.filter(g => g.enabled).length;
 
   const handleAction = async (id, action) => {
     try {
@@ -53,7 +53,7 @@ export default function HSMDashboard() {
     <>
       <div className="page-header">
         <h1>HSM Gateway</h1>
-        <p>Hardware Security Module gateway dashboard — monitor endpoints, sessions, and routing</p>
+        <p>Hardware Security Module gateway dashboard — monitor endpoints, groups, and routing</p>
       </div>
 
       {msg && <div className={`admin-msg admin-msg-${msg.type}`} style={{ marginBottom: 16 }}>{msg.text}</div>}
@@ -69,9 +69,10 @@ export default function HSMDashboard() {
           <div style={{ fontSize: 28, fontWeight: 700, color: degradedCount > 0 ? 'var(--yellow)' : 'var(--text-muted)' }}>{degradedCount}</div>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Degraded</div>
         </div>
-        <div className="table-card" style={{ padding: 20, textAlign: 'center', cursor: 'pointer' }} onClick={() => navigate('/hsm/sessions')}>
-          <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--cyan)' }}>{activeSessions}</div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Active Sessions</div>
+        <div className="table-card" style={{ padding: 20, textAlign: 'center', cursor: 'pointer' }} onClick={() => navigate('/hsm/groups')}>
+          <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--cyan)' }}>{enabledGroups}</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Endpoint Groups</div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{groups.length} total</div>
         </div>
         <div className="table-card" style={{ padding: 20, textAlign: 'center', cursor: 'pointer' }} onClick={() => navigate('/hsm/audit')}>
           <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--text-secondary)' }}>

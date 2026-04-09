@@ -39,6 +39,7 @@ const HSM_PRESETS = {
 export default function HSMEndpoints() {
   const { canDo } = useAuth();
   const [endpoints, setEndpoints] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -46,8 +47,12 @@ export default function HSMEndpoints() {
 
   const load = useCallback(async () => {
     try {
-      const data = await secretsFetch('/hsm/v1/endpoints');
-      setEndpoints(data || []);
+      const [epData, grpData] = await Promise.all([
+        secretsFetch('/hsm/v1/endpoints'),
+        secretsFetch('/hsm/v1/endpoint-groups'),
+      ]);
+      setEndpoints(epData || []);
+      setGroups(grpData || []);
     } catch (e) {
       setMsg({ type: 'error', text: 'Failed to load endpoints' });
     } finally {
@@ -112,7 +117,7 @@ export default function HSMEndpoints() {
           <table>
             <thead>
               <tr>
-                <th>Name</th><th>Model</th><th>Address</th><th>Status</th>
+                <th>Name</th><th>Model</th><th>Address</th><th>Group</th><th>Status</th>
                 <th>Weight</th><th>Capabilities</th><th>Pool</th><th>Actions</th>
               </tr>
             </thead>
@@ -122,6 +127,15 @@ export default function HSMEndpoints() {
                   <td><strong>{ep.name}</strong></td>
                   <td><span className="badge badge-cyan">{ep.model}</span></td>
                   <td style={{fontFamily:'monospace',fontSize:12}}>{ep.address}:{ep.port}</td>
+                  <td>
+                    {ep.groupId ? (
+                      <span className="badge badge-cyan" style={{fontSize:10}}>
+                        {groups.find(g => g.id === ep.groupId)?.name || `#${ep.groupId}`}
+                      </span>
+                    ) : (
+                      <span style={{fontSize:11,color:'var(--text-muted)'}}>—</span>
+                    )}
+                  </td>
                   <td><span className={`badge ${STATUS_BADGE[ep.status]||'badge-muted'}`}>{ep.status}</span></td>
                   <td>{ep.weight}</td>
                   <td>
@@ -145,7 +159,7 @@ export default function HSMEndpoints() {
                   </td>
                 </tr>
               ))}
-              {endpoints.length === 0 && <tr><td colSpan={8} style={{textAlign:'center',padding:32,color:'var(--text-muted)'}}>No endpoints configured</td></tr>}
+              {endpoints.length === 0 && <tr><td colSpan={9} style={{textAlign:'center',padding:32,color:'var(--text-muted)'}}>No endpoints configured</td></tr>}
             </tbody>
           </table>
         </div>

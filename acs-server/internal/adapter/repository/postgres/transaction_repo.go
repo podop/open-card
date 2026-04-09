@@ -22,6 +22,11 @@ func NewTransactionRepo(db *sqlx.DB) *TransactionRepo {
 	return &TransactionRepo{db: db}
 }
 
+// DB exposes the underlying sqlx DB for read-heavy analytics queries.
+func (r *TransactionRepo) DB() *sqlx.DB {
+	return r.db
+}
+
 // Save inserts a new Transaction row.
 func (r *TransactionRepo) Save(ctx context.Context, tx *entity.Transaction) error {
 	const q = `

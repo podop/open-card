@@ -19,7 +19,7 @@ import RotationPolicies from './pages/RotationPolicies';
 import SecurityProviders from './pages/SecurityProviders';
 import HSMDashboard from './pages/HSMDashboard';
 import HSMEndpoints from './pages/HSMEndpoints';
-import HSMSessions from './pages/HSMSessions';
+import HSMEndpointGroups from './pages/HSMEndpointGroups';
 import HSMConsole from './pages/HSMConsole';
 import HSMAudit from './pages/HSMAudit';
 import HSMEmulator from './pages/HSMEmulator';
@@ -195,7 +195,7 @@ const navigationGroups = [
     items: [
       { to: '/hsm', label: 'Dashboard', end: true, icon: icons.dashboard, action: 'ReadHSMMetrics' },
       { to: '/hsm/endpoints', label: 'Endpoints', icon: icons.hsmEndpoint, action: 'ReadHSMEndpoints' },
-      { to: '/hsm/sessions', label: 'Sessions', icon: icons.hsm, action: 'ReadHSMEndpoints' },
+      { to: '/hsm/groups', label: 'Endpoint Groups', icon: icons.hsm, action: 'ReadHSMEndpoints' },
       { to: '/hsm/console', label: 'Console', icon: icons.hsmConsole, action: 'UseHSM' },
       { to: '/hsm/audit', label: 'Audit Log', icon: icons.hsmAudit, action: 'ReadHSMAudit' },
       { to: '/hsm/emulator', label: 'HSM Emulator', icon: icons.hsmConsole, action: 'AdminHSM' },
@@ -393,7 +393,7 @@ function AppLayout() {
             <Route path="/security-providers" element={<SecurityProviders />} />
             <Route path="/hsm" element={<HSMDashboard />} />
             <Route path="/hsm/endpoints" element={<HSMEndpoints />} />
-            <Route path="/hsm/sessions" element={<HSMSessions />} />
+            <Route path="/hsm/groups" element={<HSMEndpointGroups />} />
             <Route path="/hsm/console" element={<HSMConsole />} />
             <Route path="/hsm/audit" element={<HSMAudit />} />
             <Route path="/hsm/emulator" element={<HSMEmulator />} />

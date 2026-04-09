@@ -33,14 +33,16 @@ func RegisterRoutes(r *gin.Engine, h *Handler, identityURL string, log *zap.Logg
 	v1.GET("/capabilities", mw(actions.ReadHSMEndpoints), h.ListCapabilities)
 	v1.GET("/capabilities/:model", mw(actions.ReadHSMEndpoints), h.GetModelCapabilities)
 
-	// B. Sessions
-	sess := v1.Group("/sessions")
+	// B. Endpoint Groups
+	groups := v1.Group("/endpoint-groups")
 	{
-		sess.GET("", mw(actions.UseHSM), h.ListSessions)
-		sess.POST("", mw(actions.UseHSM), h.CreateSession)
-		sess.GET("/:id", mw(actions.UseHSM), h.GetSession)
-		sess.DELETE("/:id", mw(actions.UseHSM), h.DeleteSession)
-		sess.POST("/:id/ping", mw(actions.UseHSM), h.PingSession)
+		groups.GET("", mw(actions.ReadHSMEndpoints), h.ListEndpointGroups)
+		groups.POST("", mw(actions.WriteHSMEndpoints), h.CreateEndpointGroup)
+		groups.GET("/:id", mw(actions.ReadHSMEndpoints), h.GetEndpointGroup)
+		groups.PUT("/:id", mw(actions.WriteHSMEndpoints), h.UpdateEndpointGroup)
+		groups.DELETE("/:id", mw(actions.WriteHSMEndpoints), h.DeleteEndpointGroup)
+		groups.POST("/:id/endpoints", mw(actions.WriteHSMEndpoints), h.AssignEndpointToGroup)
+		groups.DELETE("/:id/endpoints", mw(actions.WriteHSMEndpoints), h.RemoveEndpointFromGroup)
 	}
 
 	// C. Crypto: Keys

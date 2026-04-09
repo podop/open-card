@@ -16,6 +16,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/your-org/acs-server/internal/adapter/repository/postgres"
 	"github.com/your-org/acs-server/internal/domain/entity"
 	"github.com/your-org/acs-server/internal/domain/repository"
@@ -118,6 +119,14 @@ type DashboardStats struct {
 	Unavailable   int64 `json:"unavailable"`
 }
 
+type dashboardAnalyticsRow struct {
+	CreatedAt         time.Time `db:"created_at" json:"createdAt"`
+	Network           string    `db:"network" json:"network"`
+	MerchantCountry   string    `db:"merchant_country" json:"merchantCountry"`
+	TransStatus       string    `db:"trans_status" json:"transStatus"`
+	ChallengeAttempts int       `db:"challenge_attempts" json:"challengeAttempts"`
+}
+
 // GetDashboard handles GET /api/dashboard
 func (h *ApiHandler) GetDashboard(c *gin.Context) {
 	ctx := c.Request.Context()
@@ -143,6 +152,13 @@ func (h *ApiHandler) GetDashboard(c *gin.Context) {
 		return
 	}
 
+	analytics, err := h.dashboardAnalytics(ctx)
+	if err != nil {
+		h.log.Error("dashboard analytics query failed", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	// Recent 10 transactions
 	recent, _, err := h.txRepo.List(ctx, repository.TransactionFilter{Page: 1, PerPage: 10})
 	if err != nil {
@@ -152,10 +168,11 @@ func (h *ApiHandler) GetDashboard(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"stats":    stats,
-		"networks": networks,
-		"activity": activity,
-		"recent":   txListItems(recent),
+		"stats":     stats,
+		"networks":  networks,
+		"activity":  activity,
+		"analytics": analytics,
+		"recent":    txListItems(recent),
 	})
 }
 
@@ -251,6 +268,34 @@ func (h *ApiHandler) hourlyActivity(ctx context.Context) ([]activityPoint, error
 		pts = append(pts, *v)
 	}
 	return pts, nil
+}
+
+func (h *ApiHandler) dashboardAnalytics(ctx context.Context) ([]dashboardAnalyticsRow, error) {
+	type dbProvider interface {
+		DB() *sqlx.DB
+	}
+
+	provider, ok := h.txRepo.(dbProvider)
+	if !ok {
+		return nil, fmt.Errorf("transaction repo does not expose analytics db")
+	}
+
+	const q = `
+		SELECT
+			created_at,
+			network,
+			merchant_country,
+			trans_status,
+			challenge_attempts
+		FROM transactions
+		WHERE created_at >= NOW() - INTERVAL '366 days'
+		ORDER BY created_at DESC`
+
+	var rows []dashboardAnalyticsRow
+	if err := provider.DB().SelectContext(ctx, &rows, q); err != nil {
+		return nil, fmt.Errorf("dashboard analytics select: %w", err)
+	}
+	return rows, nil
 }
 
 // ── Transactions ───────────────────────────────────────────────────────────
