@@ -21,7 +21,7 @@ func RegisterRoutes(r *gin.Engine, h *Handler, identityURL string, log *zap.Logg
 		ep.GET("", mw(actions.ReadHSMEndpoints), h.ListEndpoints)
 		ep.GET("/:id", mw(actions.ReadHSMEndpoints), h.GetEndpoint)
 		ep.POST("", mw(actions.WriteHSMEndpoints), h.CreateEndpoint)
-		ep.PUT("/:id", mw(actions.WriteHSMEndpoints), h.UpdateEndpoint)
+		ep.PUT("/int/:id", mw(actions.WriteHSMEndpoints), h.UpdateEndpoint)
 		ep.DELETE("/:id", mw(actions.WriteHSMEndpoints), h.DeleteEndpoint)
 		ep.GET("/:id/health", mw(actions.ReadHSMEndpoints), h.GetEndpointHealth)
 		ep.POST("/:id/reconnect", mw(actions.WriteHSMEndpoints), h.ReconnectEndpoint)
